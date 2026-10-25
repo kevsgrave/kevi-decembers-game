@@ -1,17 +1,50 @@
 {
   "extraKnownMarketplaces": {
     "ponytail": {
-      "source": { "source": "github", "repo": "DietrichGebert/ponytail" }
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
     },
     "agricidaniel-claude-obsidian": {
-      "source": { "source": "github", "repo": "AgriciDaniel/claude-obsidian" }
+      "source": {
+        "source": "github",
+        "repo": "AgriciDaniel/claude-obsidian"
+      }
     },
     "claude-code-skills": {
-      "source": { "source": "github", "repo": "alirezarezvani/claude-skills" }
+      "source": {
+        "source": "github",
+        "repo": "alirezarezvani/claude-skills"
+      }
     }
   },
   "enabledPlugins": {
     "ponytail@ponytail": true,
     "claude-obsidian@agricidaniel-claude-obsidian": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard search",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "graphify hook-guard read",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
