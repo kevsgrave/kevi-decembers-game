@@ -14,6 +14,12 @@ You run a platform of bedrooms. Creepypasta monsters sit in front of each bedroo
 4. The scare pays Fear and the bedroom respawns as a new randomly rolled tier.
 5. Spend Fear on eggs, accessory boxes and more bedrooms.
 
+## Scare payout
+
+Any monster can scare any bedroom; monster rarity does not need to match bedroom tier.
+
+Fear per scare = monster multiplier × accessory multiplier × bedroom tier multiplier
+
 ## Monsters
 
 - Monsters are the workers. There is one egg system.
@@ -63,9 +69,8 @@ You run a platform of bedrooms. Creepypasta monsters sit in front of each bedroo
 
 ## Open questions
 
-1. Can a scare fail, and does monster rarity need to match the bedroom tier?
-2. What decides a bedroom's rolled tier: pure luck, or luck upgrades and rebirths?
-3. Can players trade monsters, visit other platforms, or steal?
-4. Is the accessory rail track still in, or did the rotating shop replace it?
-5. What are the names of the 6 tiers plus Secret?
-6. Does a manual scare pay anything extra?
+1. What decides a bedroom's rolled tier: pure luck, or luck upgrades and rebirths?
+2. Can players trade monsters, visit other platforms, or steal?
+3. Is the accessory rail track still in, or did the rotating shop replace it?
+4. What are the names of the 6 tiers plus Secret?
+5. Does a manual scare pay anything extra?
