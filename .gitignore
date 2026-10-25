@@ -1,2 +1,3 @@
 *.graphify-bak
 graphify-out/
+*.bak
