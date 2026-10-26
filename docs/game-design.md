@@ -31,7 +31,8 @@ Fear per scare = monster multiplier × accessory multiplier × bedroom tier mult
 ## Guests and bedrooms
 
 - Guests are original animal characters.
-- Bedrooms live on the player's own platform and respawn with a new tier after each scare. Layout screenshots to come.
+- Bedrooms live on the player's own platform and respawn with a new tier after each scare.
+- Platform layout: a center aisle runs from the platform entrance to the back, with 3 bedrooms on each side (6 per floor). Each bedroom's showcase pad sits on the aisle side, and the player walks in from the aisle to do a manual scare. The layout follows the slot-tycoon style of a center walkway with slots on both sides.
 - Scares are seen through a window. No gore, no intense scares, no loud audio, no screen flashes.
 
 ## Manual scares
@@ -47,7 +48,7 @@ Fear per scare = monster multiplier × accessory multiplier × bedroom tier mult
 ## Progression
 
 - Fear buys more bedrooms.
-- Rebirth unlocks another bedroom slot and eventually a 2nd floor.
+- Rebirth unlocks another bedroom slot. Once all 6 bedrooms on the first floor are open, the next ones go on a 2nd floor.
 
 ## Multiplayer
 
