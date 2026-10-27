@@ -148,8 +148,9 @@ for row = 1, 3 do
 		P(b, "GuestSpot", Vector3.new(1, 1, 1), CFrame.new(bx, y0 + 6, wz + L * 1.5) * faceAisle, Color3.new(1,1,1), nil, {Transparency = 1, CanCollide = false})
 		local nsz = wz + L * 8
 		studs(P(b, "Nightstand", Vector3.new(3, 3, 3), CFrame.new(bx + s * 2, y0 + 1.5, nsz), Color3.fromRGB(160, 110, 70)), 2)
-		local lamp = P(b, "Lamp", Vector3.new(1.6, 1.6, 1.6), CFrame.new(bx + s * 2, y0 + 4, nsz), Color3.fromRGB(255, 230, 150), Enum.Material.Neon, {Shape = Enum.PartType.Ball})
-		local ll = Instance.new("PointLight") ll.Color = Color3.fromRGB(255, 210, 140) ll.Range = 22 ll.Brightness = 1.5 ll.Parent = lamp
+		-- dim nightlight: the kids are asleep
+		local lamp = P(b, "Lamp", Vector3.new(1, 1, 1), CFrame.new(bx + s * 2, y0 + 3.6, nsz), Color3.fromRGB(200, 130, 70), Enum.Material.Neon, {Shape = Enum.PartType.Ball})
+		local ll = Instance.new("PointLight") ll.Color = Color3.fromRGB(255, 160, 80) ll.Range = 10 ll.Brightness = 0.5 ll.Parent = lamp
 		studs(P(b, "ToyBox", Vector3.new(4, 3, 3), CFrame.new(s * (BACK - 4), y0 + 1.5, z + L * (HALF - 3)), Color3.fromRGB(255, 90, 90)), 2)
 		P(b, "Ball", Vector3.new(2, 2, 2), CFrame.new(s * (FRONT + 6), y0 + 1.2, z + L * 4), Color3.fromRGB(80, 200, 255), Enum.Material.SmoothPlastic, {Shape = Enum.PartType.Ball})
 		-- tier sign above the window
@@ -161,6 +162,7 @@ for row = 1, 3 do
 		studs(P(b, "ShowcaseBase", Vector3.new(8, 2, 8), CFrame.new(scx, y0 + 1, scz), Color3.fromRGB(40, 60, 160)), 2)
 		P(b, "ShowcaseTrim", Vector3.new(8.4, 0.6, 8.4), CFrame.new(scx, y0 + 2.3, scz), Color3.fromRGB(255, 220, 80), Enum.Material.SmoothPlastic)
 		P(b, "ShowcaseGlass", Vector3.new(7.4, 8, 7.4), CFrame.new(scx, y0 + 6.6, scz), Color3.fromRGB(200, 240, 255), Enum.Material.Glass, {Transparency = 0.6})
+		local place = Instance.new("ProximityPrompt") place.Name = "PlacePrompt" place.ActionText = "Place Monster" place.ObjectText = "Display Case" place.HoldDuration = 0.3 place.MaxActivationDistance = 10 place.RequiresLineOfSight = false place.Parent = b.ShowcaseGlass
 		for _, c in ipairs({{-1, -1}, {-1, 1}, {1, -1}, {1, 1}}) do
 			P(b, "ShowcasePost", Vector3.new(0.6, 8, 0.6), CFrame.new(scx + c[1] * 3.9, y0 + 6.6, scz + c[2] * 3.9), Color3.fromRGB(255, 220, 80))
 		end

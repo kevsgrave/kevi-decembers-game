@@ -1,8 +1,10 @@
--- Jumpscare RNG v1: claim plot, egg -> monster -> showcase -> timed scares -> Fear
+-- Jumpscare RNG v1: claim plot, egg -> inventory -> place in showcase -> timed scares -> Fear
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local JeffRig = require(ReplicatedStorage:WaitForChild("JeffRig"))
 
 local plot = workspace:WaitForChild("Plot")
 local contents = plot:WaitForChild("Contents")
@@ -25,8 +27,10 @@ local MONSTER_TIERS = {
 	{name = "Mythic", chance = 0.9, interval = 5, min = 1200, max = 5000, color = Color3.fromRGB(255, 70, 90)},
 	{name = "SPOOKY", chance = 0.1, interval = 3.5, min = 8000, max = 15000, color = Color3.fromRGB(40, 255, 160)},
 }
--- placeholder kid-friendly names until the real monster models exist
-local MONSTER_NAMES = {"Grinny Pup", "Fuzzy Blue", "Peeper", "Snooze Cat", "Stretchy", "Giggle Ghost", "Mr. Boo", "Wobble"}
+local TIER_BY_NAME = {}
+for _, t in ipairs(MONSTER_TIERS) do TIER_BY_NAME[t.name] = t end
+-- Jeff is the only hatchable monster for now; the egg still rolls his rarity
+local MONSTER_NAME = "Jeff"
 
 -- from the wiki: Bedroom Tiers, chances in percent
 local BEDROOM_TIERS = {
@@ -114,30 +118,21 @@ local function makeGuest(spot)
 	return m
 end
 
+-- Jeff built from the Blender model; a rarity-coloured outline shows his tier
 local function makeMonster(spot, tier)
-	local m = Instance.new("Model") m.Name = "Monster"
-	local cf = spot.CFrame * CFrame.new(0, 2.4, 0)
-	local body = part(m, "Body", Vector3.new(3.6, 4, 3.6), cf, tier.color, Enum.PartType.Ball)
-	body.Anchored = true
-	for _, x in ipairs({-0.7, 0.7}) do
-		weld(body, part(m, "Eye", Vector3.new(1.1, 1.1, 1.1), cf * CFrame.new(x, 0.6, -1.5), Color3.new(1, 1, 1), Enum.PartType.Ball))
-		weld(body, part(m, "Pupil", Vector3.new(0.5, 0.5, 0.5), cf * CFrame.new(x, 0.6, -2), Color3.new(0, 0, 0), Enum.PartType.Ball))
-		weld(body, part(m, "Horn", Vector3.new(0.5, 1.1, 0.5), cf * CFrame.new(x * 1.3, 2.1, 0), Color3.fromRGB(255, 240, 220)))
-	end
-	weld(body, part(m, "Mouth", Vector3.new(1.6, 0.35, 0.35), cf * CFrame.new(0, -0.6, -1.7), Color3.fromRGB(60, 20, 40)))
-	m.PrimaryPart = body
-	m.Parent = spot.Parent
+	local m = JeffRig.build(spot.Parent, spot.CFrame * CFrame.new(0, 0.25, 0))
+	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m
 	return m
 end
 
--- mild scare: monster hops toward the window, kid jumps with a "!" bubble
+-- mild scare: clients play Jeff's Blender scare, then the kid jumps with a "!" bubble
 local function playScare(bedroom, monster)
 	local guest = bedroom:FindFirstChild("Guest")
 	if monster then
-		local home = monster.PrimaryPart.CFrame
-		TweenService:Create(monster.PrimaryPart, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true), {CFrame = home * CFrame.new(0, 1, -0.6)}):Play()
+		monster:SetAttribute("ScareCount", (monster:GetAttribute("ScareCount") or 0) + 1)
+		task.wait(JeffRig.PEAK)
 	end
-	if guest then
+	if guest and guest.Parent then
 		local head = guest.PrimaryPart
 		local bb = Instance.new("BillboardGui") bb.Size = UDim2.fromOffset(60, 60) bb.StudsOffset = Vector3.new(0, 2.5, 0) bb.Parent = head
 		local t = Instance.new("TextLabel") t.Size = UDim2.fromScale(1, 1) t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne
@@ -194,6 +189,7 @@ local function refreshLocks(player)
 		b.Lock.SurfaceGui.Enabled = not open
 		b.ShowcaseLid.Info.Enabled = open
 		b.CrawlHole.ScarePrompt.Enabled = open
+		b.ShowcaseGlass.PlacePrompt.Enabled = open
 		if open then
 			makeGuest(b.GuestSpot)
 			showInfo(player, b)
@@ -216,31 +212,73 @@ local function runShowcase(player, bedroom, slot)
 	end
 end
 
-local function firstEmptyBedroom(player)
-	local s = state[player]
-	for i = 1, s.unlocked do
-		if not s.slots[i] then return i, bedrooms["Bedroom" .. i] end
+-- inventory is the Backpack; a StarterGear copy keeps monsters through respawns
+local function giveMonster(player, name, tier)
+	local tool = Instance.new("Tool")
+	tool.Name = name
+	tool.RequiresHandle = false
+	tool.CanBeDropped = false
+	tool.ToolTip = tier.name .. " - place in a display case"
+	tool:SetAttribute("Tier", tier.name)
+	tool:SetAttribute("Uid", HttpService:GenerateGUID(false))
+	tool:Clone().Parent = player.StarterGear
+	tool.Parent = player.Backpack
+end
+
+local function takeMonster(player)
+	local held = player.Character and player.Character:FindFirstChildOfClass("Tool")
+	local tool = (held and held:GetAttribute("Tier")) and held or nil
+	if not tool then
+		for _, t in ipairs(player.Backpack:GetChildren()) do
+			if t:GetAttribute("Tier") then tool = t break end
+		end
 	end
+	if not tool then return end
+	for _, t in ipairs(player.StarterGear:GetChildren()) do
+		if t:GetAttribute("Uid") == tool:GetAttribute("Uid") then t:Destroy() end
+	end
+	local name, tier = tool.Name, TIER_BY_NAME[tool:GetAttribute("Tier")]
+	tool:Destroy()
+	return name, tier
 end
 
 local function hatch(player)
 	local s = state[player]
 	if player ~= owner or not s then return end
-	local i, bedroom = firstEmptyBedroom(player)
-	if not i then
-		popupRemote:FireClient(player, "All showcases are full! Rebirth for more.")
-		return
-	end
 	if fearOf(player).Value < EGG_COST then
 		popupRemote:FireClient(player, "Need " .. EGG_COST .. " Fear")
 		return
 	end
 	fearOf(player).Value -= EGG_COST
 	local tier = rollMonsterTier()
-	local slot = {tier = tier, name = MONSTER_NAMES[math.random(#MONSTER_NAMES)]}
+	giveMonster(player, MONSTER_NAME, tier)
+	popupRemote:FireClient(player, "You hatched " .. MONSTER_NAME .. " (" .. tier.name .. ")! Place him in a display case.")
+end
+
+-- display case prompt: place the held (or first) monster, or pick the current one back up
+local function useShowcase(player, b)
+	local s = state[player]
+	if player ~= owner or not s or b:GetAttribute("Index") > s.unlocked then return end
+	local i = b:GetAttribute("Index")
+	local prompt = b.ShowcaseGlass.PlacePrompt
+	if s.slots[i] then
+		local slot = s.slots[i]
+		s.slots[i] = nil
+		local m = b:FindFirstChild("Monster") if m then m:Destroy() end
+		giveMonster(player, slot.name, slot.tier)
+		prompt.ActionText = "Place Monster"
+		showInfo(player, b)
+		return
+	end
+	local name, tier = takeMonster(player)
+	if not name then
+		popupRemote:FireClient(player, "Hatch an egg first!")
+		return
+	end
+	local slot = {tier = tier, name = name}
 	s.slots[i] = slot
-	popupRemote:FireClient(player, "You hatched " .. slot.name .. " (" .. tier.name .. ")!")
-	task.spawn(runShowcase, player, bedroom, slot)
+	prompt.ActionText = "Pick Up"
+	task.spawn(runShowcase, player, b, slot)
 end
 
 local function manualScare(player, b, last)
@@ -266,6 +304,7 @@ local function claim(player)
 		setBedroomTier(b, NORMAL_TIER)
 		local last = {}
 		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b, last) end)
+		b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
 	end
 	claimPad.ClaimPrompt.Enabled = false
 	claimPad.Transparency = 1
