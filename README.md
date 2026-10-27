@@ -18,6 +18,12 @@ graphify install --project
 
 Then run `/graphify .` in Claude Code.
 
-## Obsidian notes
+## Obsidian vault
 
-Keep the claude-obsidian vault inside this repo (for example a `wiki/` folder) so your notes travel with it.
+The game's notes live in `vault/`, a claude-obsidian vault that travels with the repo.
+
+- Open it in Obsidian with **Open folder as vault** and pick the `vault` folder inside your repo clone.
+- Start at `wiki/overview.md`. Every design topic, monster and open question has its own page.
+- New monster: create a note in `wiki/entities/monsters/` and insert the **Monster** template.
+- Drop new source material (monster lists, screenshots) in `vault/inbox/` and ask Claude to ingest it.
+- Pull before you edit and push after, so both PCs stay in sync.
