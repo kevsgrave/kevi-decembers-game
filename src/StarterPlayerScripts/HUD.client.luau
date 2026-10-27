@@ -12,22 +12,27 @@ local gui = Instance.new("ScreenGui") gui.Name = "HUD" gui.ResetOnSpawn = false 
 local function text(name, size, pos, anchor)
 	local t = Instance.new("TextLabel")
 	t.Name = name t.Size = size t.Position = pos t.AnchorPoint = anchor t.BackgroundTransparency = 1
-	t.Font = Enum.Font.FredokaOne t.TextScaled = true t.TextColor3 = Color3.fromRGB(170, 120, 255)
-	t.TextStrokeTransparency = 0 t.Parent = gui
+	t.Font = Enum.Font.FredokaOne t.TextScaled = true t.TextColor3 = Color3.fromRGB(90, 255, 90)
+	t.Parent = gui
+	local s = Instance.new("UIStroke") s.Thickness = 4 s.Color = Color3.fromRGB(20, 10, 40) s.Parent = t
 	return t
 end
 
-local fearLabel = text("Fear", UDim2.fromOffset(320, 60), UDim2.new(0, 16, 1, -16), Vector2.new(0, 1))
+local fearLabel = text("Fear", UDim2.fromOffset(380, 80), UDim2.new(0, 16, 1, -16), Vector2.new(0, 1))
 fearLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local popup = text("Popup", UDim2.fromOffset(500, 44), UDim2.new(0.5, 0, 0.2, 0), Vector2.new(0.5, 0))
-popup.TextColor3 = Color3.new(1, 1, 1) popup.TextTransparency = 1 popup.TextStrokeTransparency = 1
+popup.TextColor3 = Color3.new(1, 1, 1) popup.TextTransparency = 1
+local popupStroke = popup.UIStroke popupStroke.Transparency = 1
 
 local btn = Instance.new("TextButton")
-btn.Name = "Rebirth" btn.Size = UDim2.fromOffset(170, 64) btn.Position = UDim2.new(0, 16, 0.5, 0) btn.AnchorPoint = Vector2.new(0, 0.5)
+btn.Name = "Rebirth" btn.Size = UDim2.fromOffset(150, 110) btn.Position = UDim2.new(0, 16, 0.5, 0) btn.AnchorPoint = Vector2.new(0, 0.5)
 btn.BackgroundColor3 = Color3.fromRGB(220, 60, 90) btn.Font = Enum.Font.FredokaOne btn.TextScaled = true btn.TextColor3 = Color3.new(1, 1, 1)
 btn.Parent = gui
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 16)
+local bs = Instance.new("UIStroke") bs.Thickness = 4 bs.Color = Color3.fromRGB(20, 10, 40) bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border bs.Parent = btn
+local ts = Instance.new("UIStroke") ts.Thickness = 3 ts.Color = Color3.fromRGB(20, 10, 40) ts.Parent = btn
+local pad = Instance.new("UIPadding") pad.PaddingLeft = UDim.new(0, 10) pad.PaddingRight = UDim.new(0, 10) pad.PaddingTop = UDim.new(0, 8) pad.PaddingBottom = UDim.new(0, 8) pad.Parent = btn
 
 local function short(n)
 	if n >= 1e9 then return string.format("%.1fB", n / 1e9) end
@@ -57,9 +62,10 @@ local seq = 0
 remotes.Popup.OnClientEvent:Connect(function(msg)
 	seq += 1
 	local mine = seq
-	popup.Text = msg popup.TextTransparency = 0 popup.TextStrokeTransparency = 0
+	popup.Text = msg popup.TextTransparency = 0 popupStroke.Transparency = 0
 	task.wait(1.5)
 	if mine == seq then
-		TweenService:Create(popup, TweenInfo.new(0.5), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
+		TweenService:Create(popup, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+		TweenService:Create(popupStroke, TweenInfo.new(0.5), {Transparency = 1}):Play()
 	end
 end)

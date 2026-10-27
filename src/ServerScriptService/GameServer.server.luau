@@ -1,11 +1,14 @@
--- Jumpscare RNG v1: one plot, egg -> monster -> showcase -> timed scares -> Fear
+-- Jumpscare RNG v1: claim plot, egg -> monster -> showcase -> timed scares -> Fear
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 
 local plot = workspace:WaitForChild("Plot")
-local bedrooms = plot:WaitForChild("Bedrooms")
-local egg = plot:WaitForChild("Egg")
+local contents = plot:WaitForChild("Contents")
+local claimPad = plot:WaitForChild("ClaimPad")
+local template = ServerStorage:WaitForChild("PlotTemplate")
+local BEDROOM_COUNT = #template.Bedrooms:GetChildren()
 
 local EGG_COST = 250
 local START_FEAR = 250
@@ -15,10 +18,10 @@ local MANUAL_COOLDOWN = 3
 
 -- from the wiki: Tiers For Monsters (odds are a v1 guess)
 local MONSTER_TIERS = {
-	{name = "Common", chance = 60, interval = 15, min = 25, max = 400, color = Color3.fromRGB(180, 180, 180)},
-	{name = "Rare", chance = 25, interval = 10, min = 200, max = 800, color = Color3.fromRGB(70, 140, 255)},
-	{name = "Epic", chance = 10, interval = 8, min = 400, max = 1500, color = Color3.fromRGB(170, 80, 255)},
-	{name = "Legendary", chance = 4, interval = 5, min = 800, max = 2500, color = Color3.fromRGB(255, 190, 40)},
+	{name = "Common", chance = 60, interval = 15, min = 25, max = 400, color = Color3.fromRGB(200, 200, 200)},
+	{name = "Rare", chance = 25, interval = 10, min = 200, max = 800, color = Color3.fromRGB(70, 160, 255)},
+	{name = "Epic", chance = 10, interval = 8, min = 400, max = 1500, color = Color3.fromRGB(190, 90, 255)},
+	{name = "Legendary", chance = 4, interval = 5, min = 800, max = 2500, color = Color3.fromRGB(255, 200, 40)},
 	{name = "Mythic", chance = 0.9, interval = 5, min = 1200, max = 5000, color = Color3.fromRGB(255, 70, 90)},
 	{name = "SPOOKY", chance = 0.1, interval = 3.5, min = 8000, max = 15000, color = Color3.fromRGB(40, 255, 160)},
 }
@@ -62,6 +65,13 @@ end
 local function rebirthCost(rebirths) return 5000 * (rebirths + 1) ^ 2 end
 local function rebirthMult(rebirths) return 1 + 0.5 * rebirths end
 
+local function short(n)
+	if n >= 1e9 then return string.format("%.1fB", n / 1e9) end
+	if n >= 1e6 then return string.format("%.1fM", n / 1e6) end
+	if n >= 1e3 then return string.format("%.1fK", n / 1e3) end
+	return tostring(math.floor(n))
+end
+
 -- remotes
 local remotes = Instance.new("Folder") remotes.Name = "Remotes" remotes.Parent = ReplicatedStorage
 local rebirthRemote = Instance.new("RemoteEvent") rebirthRemote.Name = "Rebirth" rebirthRemote.Parent = remotes
@@ -104,20 +114,17 @@ local function makeGuest(spot)
 	return m
 end
 
-local function makeMonster(spot, tier, name)
+local function makeMonster(spot, tier)
 	local m = Instance.new("Model") m.Name = "Monster"
-	local cf = spot.CFrame * CFrame.new(0, 2, 0)
-	local body = part(m, "Body", Vector3.new(3, 3.4, 3), cf, tier.color, Enum.PartType.Ball)
+	local cf = spot.CFrame * CFrame.new(0, 2.4, 0)
+	local body = part(m, "Body", Vector3.new(3.6, 4, 3.6), cf, tier.color, Enum.PartType.Ball)
 	body.Anchored = true
-	for _, x in ipairs({-0.6, 0.6}) do
-		weld(body, part(m, "Eye", Vector3.new(0.9, 0.9, 0.9), cf * CFrame.new(x, 0.5, -1.25), Color3.new(1, 1, 1), Enum.PartType.Ball))
-		weld(body, part(m, "Pupil", Vector3.new(0.4, 0.4, 0.4), cf * CFrame.new(x, 0.5, -1.65), Color3.new(0, 0, 0), Enum.PartType.Ball))
-		weld(body, part(m, "Horn", Vector3.new(0.4, 0.9, 0.4), cf * CFrame.new(x * 1.2, 1.8, 0), Color3.fromRGB(255, 240, 220)))
+	for _, x in ipairs({-0.7, 0.7}) do
+		weld(body, part(m, "Eye", Vector3.new(1.1, 1.1, 1.1), cf * CFrame.new(x, 0.6, -1.5), Color3.new(1, 1, 1), Enum.PartType.Ball))
+		weld(body, part(m, "Pupil", Vector3.new(0.5, 0.5, 0.5), cf * CFrame.new(x, 0.6, -2), Color3.new(0, 0, 0), Enum.PartType.Ball))
+		weld(body, part(m, "Horn", Vector3.new(0.5, 1.1, 0.5), cf * CFrame.new(x * 1.3, 2.1, 0), Color3.fromRGB(255, 240, 220)))
 	end
-	weld(body, part(m, "Mouth", Vector3.new(1.4, 0.3, 0.3), cf * CFrame.new(0, -0.5, -1.4), Color3.fromRGB(60, 20, 40)))
-	local bb = Instance.new("BillboardGui") bb.Size = UDim2.fromOffset(160, 50) bb.StudsOffset = Vector3.new(0, 2.8, 0) bb.Parent = body
-	local t = Instance.new("TextLabel") t.Size = UDim2.fromScale(1, 1) t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne
-	t.TextScaled = true t.TextStrokeTransparency = 0 t.TextColor3 = tier.color t.Text = name .. "\n" .. tier.name t.Parent = bb
+	weld(body, part(m, "Mouth", Vector3.new(1.6, 0.35, 0.35), cf * CFrame.new(0, -0.6, -1.7), Color3.fromRGB(60, 20, 40)))
 	m.PrimaryPart = body
 	m.Parent = spot.Parent
 	return m
@@ -128,8 +135,7 @@ local function playScare(bedroom, monster)
 	local guest = bedroom:FindFirstChild("Guest")
 	if monster then
 		local home = monster.PrimaryPart.CFrame
-		local tw = TweenService:Create(monster.PrimaryPart, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true), {CFrame = home * CFrame.new(0, 1, -0.6)})
-		tw:Play()
+		TweenService:Create(monster.PrimaryPart, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true), {CFrame = home * CFrame.new(0, 1, -0.6)}):Play()
 	end
 	if guest then
 		local head = guest.PrimaryPart
@@ -144,16 +150,16 @@ local function playScare(bedroom, monster)
 	end
 end
 
--- per-player state (v1 has one shared plot owned by the first player)
 local owner
-local state = {} -- [player] = {rebirths, unlocked, slots = {[idx] = {tier, name, bedroomTier}}}
+local bedrooms -- the claimed plot's Bedrooms folder
+local state = {} -- [player] = {rebirths, unlocked, slots = {[idx] = {tier, name}}}
 
 local function fearOf(player) return player.leaderstats.Fear end
 
-local function pay(player, amount, where)
+local function pay(player, amount)
 	amount = math.floor(amount * rebirthMult(state[player].rebirths))
 	fearOf(player).Value += amount
-	popupRemote:FireClient(player, "+" .. amount .. " Fear", where)
+	popupRemote:FireClient(player, "+" .. short(amount) .. " Fear")
 	return amount
 end
 
@@ -163,30 +169,49 @@ local function setBedroomTier(bedroom, tier)
 	setLabel(bedroom.TierSign, tier.name .. " x" .. tier.mult, tier.color)
 end
 
+-- display case readout: monster name, then expected Fear per scare under it
+local function showInfo(player, bedroom)
+	local info = bedroom.ShowcaseLid.Info
+	local slot = state[player].slots[bedroom:GetAttribute("Index")]
+	if not slot then
+		info.MonsterName.Text = "Empty"
+		info.MonsterName.TextColor3 = Color3.new(1, 1, 1)
+		info.Cash.Text = "Hatch an egg!"
+		return
+	end
+	local avg = (slot.tier.min + slot.tier.max) / 2 * bedroom:GetAttribute("Mult") * rebirthMult(state[player].rebirths)
+	info.MonsterName.Text = slot.name
+	info.MonsterName.TextColor3 = slot.tier.color
+	info.Cash.Text = "👻 " .. short(avg) .. " / scare"
+end
+
 local function refreshLocks(player)
 	local s = state[player]
 	for _, b in ipairs(bedrooms:GetChildren()) do
 		local open = b:GetAttribute("Index") <= s.unlocked
-		b.Lock.Transparency = open and 1 or 0.15
+		b.Lock.Transparency = open and 1 or 0.1
 		b.Lock.CanCollide = not open
 		b.Lock.SurfaceGui.Enabled = not open
+		b.ShowcaseLid.Info.Enabled = open
 		b.CrawlHole.ScarePrompt.Enabled = open
-		if open and not b:FindFirstChild("Guest") then makeGuest(b.GuestSpot) end
+		if open then
+			makeGuest(b.GuestSpot)
+			showInfo(player, b)
+		end
 	end
 end
 
 local function runShowcase(player, bedroom, slot)
 	local tier = slot.tier
-	local monster = makeMonster(bedroom.MonsterSpot, tier, slot.name)
-	setLabel(bedroom.PayPlate, tier.min .. "-" .. tier.max, Color3.new(1, 1, 1))
+	local monster = makeMonster(bedroom.MonsterSpot, tier)
+	showInfo(player, bedroom)
 	while state[player] and monster.Parent do
 		task.wait(tier.interval)
 		if not (state[player] and monster.Parent) then break end
-		local base = math.random(tier.min, tier.max)
-		local got = pay(player, base * bedroom:GetAttribute("Mult"), bedroom.ShowcaseGlass.Position)
-		setLabel(bedroom.PayPlate, "+" .. got, Color3.new(1, 1, 1))
+		pay(player, math.random(tier.min, tier.max) * bedroom:GetAttribute("Mult"))
 		playScare(bedroom, monster)
 		setBedroomTier(bedroom, rollBedroomTier())
+		showInfo(player, bedroom)
 		makeGuest(bedroom.GuestSpot)
 	end
 end
@@ -198,7 +223,7 @@ local function firstEmptyBedroom(player)
 	end
 end
 
-egg.HatchPrompt.Triggered:Connect(function(player)
+local function hatch(player)
 	local s = state[player]
 	if player ~= owner or not s then return end
 	local i, bedroom = firstEmptyBedroom(player)
@@ -216,34 +241,60 @@ egg.HatchPrompt.Triggered:Connect(function(player)
 	s.slots[i] = slot
 	popupRemote:FireClient(player, "You hatched " .. slot.name .. " (" .. tier.name .. ")!")
 	task.spawn(runShowcase, player, bedroom, slot)
-end)
-
-for _, b in ipairs(bedrooms:GetChildren()) do
-	setBedroomTier(b, NORMAL_TIER)
-	local last = {}
-	b.CrawlHole.ScarePrompt.Triggered:Connect(function(player)
-		if player ~= owner or not state[player] or not b:FindFirstChild("Guest") then return end
-		if last[player] and os.clock() - last[player] < MANUAL_COOLDOWN then return end
-		last[player] = os.clock()
-		pay(player, MANUAL_BASE * b:GetAttribute("Mult"), b.CrawlHole.Position)
-		playScare(b, nil)
-		if not state[player].slots[b:GetAttribute("Index")] then
-			setBedroomTier(b, rollBedroomTier())
-		end
-		makeGuest(b.GuestSpot)
-	end)
 end
+
+local function manualScare(player, b, last)
+	if player ~= owner or not state[player] or not b:FindFirstChild("Guest") then return end
+	if last[player] and os.clock() - last[player] < MANUAL_COOLDOWN then return end
+	last[player] = os.clock()
+	pay(player, MANUAL_BASE * b:GetAttribute("Mult"))
+	playScare(b, nil)
+	if not state[player].slots[b:GetAttribute("Index")] then
+		setBedroomTier(b, rollBedroomTier())
+	end
+	makeGuest(b.GuestSpot)
+end
+
+-- the plot is empty until claimed; claiming copies the bedrooms and egg in
+local function claim(player)
+	if owner or not state[player] then return end
+	owner = player
+	for _, child in ipairs(template:GetChildren()) do child:Clone().Parent = contents end
+	bedrooms = contents.Bedrooms
+	contents.Egg.HatchPrompt.Triggered:Connect(hatch)
+	for _, b in ipairs(bedrooms:GetChildren()) do
+		setBedroomTier(b, NORMAL_TIER)
+		local last = {}
+		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b, last) end)
+	end
+	claimPad.ClaimPrompt.Enabled = false
+	claimPad.Transparency = 1
+	claimPad.Sign.Text.Text = player.DisplayName .. "'s Plot"
+	refreshLocks(player)
+	popupRemote:FireClient(player, "Plot claimed! Hatch the Spooky Egg.")
+end
+
+local function unclaim()
+	owner = nil
+	bedrooms = nil
+	contents:ClearAllChildren()
+	claimPad.ClaimPrompt.Enabled = true
+	claimPad.Transparency = 0
+	claimPad.Sign.Text.Text = "Claim this plot!"
+end
+
+claimPad.ClaimPrompt.Triggered:Connect(claim)
 
 rebirthRemote.OnServerEvent:Connect(function(player)
 	local s = state[player]
-	if not s or s.unlocked >= #bedrooms:GetChildren() then return end
+	if player ~= owner or not s or s.unlocked >= BEDROOM_COUNT then return end
 	local cost = rebirthCost(s.rebirths)
 	if fearOf(player).Value < cost then return end
 	fearOf(player).Value = 0
 	s.rebirths += 1
 	s.unlocked += 1
 	player.leaderstats.Rebirths.Value = s.rebirths
-	player:SetAttribute("RebirthCost", s.unlocked < #bedrooms:GetChildren() and rebirthCost(s.rebirths) or -1)
+	player:SetAttribute("RebirthCost", s.unlocked < BEDROOM_COUNT and rebirthCost(s.rebirths) or -1)
 	player:SetAttribute("Multiplier", rebirthMult(s.rebirths))
 	refreshLocks(player)
 	popupRemote:FireClient(player, "Rebirth! New bedroom unlocked, x" .. rebirthMult(s.rebirths) .. " Fear")
@@ -256,21 +307,11 @@ Players.PlayerAdded:Connect(function(player)
 	local rb = Instance.new("IntValue") rb.Name = "Rebirths" rb.Parent = ls
 	player:SetAttribute("RebirthCost", rebirthCost(0))
 	player:SetAttribute("Multiplier", 1)
+	-- shortcut: one plot on the map; a second player waits for it, per-player plots come with multiplayer
 	state[player] = {rebirths = 0, unlocked = START_BEDROOMS, slots = {}}
-	-- shortcut: single plot, first player owns it; per-player plots come with multiplayer
-	if not owner then
-		owner = player
-		refreshLocks(player)
-	end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	state[player] = nil
-	if owner == player then
-		owner = nil
-		for _, b in ipairs(bedrooms:GetChildren()) do
-			local m = b:FindFirstChild("Monster") if m then m:Destroy() end
-			setLabel(b.PayPlate, "Empty")
-		end
-	end
+	if owner == player then unclaim() end
 end)
