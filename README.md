@@ -21,3 +21,11 @@ Then run `/graphify .` in Claude Code.
 ## Obsidian notes
 
 Keep the claude-obsidian vault inside this repo (for example a `wiki/` folder) so your notes travel with it.
+
+## Jumpscare RNG (v1)
+
+The place file is `JumpscareRNG.rbxl` (save it from Studio with File > Save to File As). The scripts are also kept as source here:
+
+- `src/ServerScriptService/GameServer.server.luau`: Fear, egg hatch, timed scares, bedroom tier reroll, rebirth.
+- `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button, popups.
+- `tools/build_plot.luau`: rebuilds the plot (aisle, 6 bedrooms, showcases, egg) from the Studio command bar.
