@@ -51,7 +51,7 @@ local bt = workspace.Baseplate:FindFirstChildWhichIsA("Texture") bt.Color3 = Col
 
 -- hidden spawn at the front of the plot
 local sp = workspace.SpawnLocation
-sp.CFrame = CFrame.new(0, 2.6, -60) sp.Size = Vector3.new(6, 1, 6)
+sp.CFrame = CFrame.new(12, 2.6, -57) * CFrame.Angles(0, math.pi, 0) sp.Size = Vector3.new(6, 1, 6)
 sp.Transparency = 1 sp.CanCollide = false
 for _, d in ipairs(sp:GetChildren()) do if d:IsA("Decal") then d:Destroy() end end
 
@@ -64,7 +64,7 @@ end
 studs(P(plot, "BorderBack", Vector3.new(100, 3, 2), CFrame.new(0, 1.5, 55), Color3.fromRGB(50, 80, 190)), 4)
 studs(P(plot, "Carpet", Vector3.new(12, 0.2, 116), CFrame.new(0, 2.1, -4), Color3.fromRGB(255, 50, 130)), 4)
 local claim = P(plot, "ClaimPad", Vector3.new(10, 0.4, 6), CFrame.new(0, 2.3, -58), Color3.fromRGB(80, 255, 120), Enum.Material.Neon)
-local pp = Instance.new("ProximityPrompt") pp.Name = "ClaimPrompt" pp.ActionText = "Claim Plot" pp.ObjectText = "Empty Plot" pp.HoldDuration = 0.5 pp.MaxActivationDistance = 12 pp.RequiresLineOfSight = false pp.Parent = claim
+local pp = Instance.new("ProximityPrompt") pp.Name = "ClaimPrompt" pp.ActionText = "Claim Plot" pp.ObjectText = "Empty Plot" pp.HoldDuration = 0 pp.MaxActivationDistance = 16 pp.RequiresLineOfSight = false pp.Parent = claim
 local cbb = Instance.new("BillboardGui") cbb.Name = "Sign" cbb.Size = UDim2.fromScale(16, 3.5) cbb.StudsOffset = Vector3.new(0, 6, 0) cbb.Parent = claim
 local ct = Instance.new("TextLabel") ct.Name = "Text" ct.Size = UDim2.fromScale(1,1) ct.BackgroundTransparency = 1 ct.Font = Enum.Font.FredokaOne ct.TextScaled = true
 ct.TextColor3 = Color3.fromRGB(120, 255, 140) ct.Text = "Claim this plot!" ct.Parent = cbb stroke(ct, 4)

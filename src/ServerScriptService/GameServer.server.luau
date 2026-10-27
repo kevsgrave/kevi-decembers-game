@@ -323,6 +323,11 @@ local function unclaim()
 end
 
 claimPad.ClaimPrompt.Triggered:Connect(claim)
+-- stepping on the pad claims too
+claimPad.Touched:Connect(function(hit)
+	local player = Players:GetPlayerFromCharacter(hit.Parent)
+	if player then claim(player) end
+end)
 
 rebirthRemote.OnServerEvent:Connect(function(player)
 	local s = state[player]
@@ -340,7 +345,7 @@ rebirthRemote.OnServerEvent:Connect(function(player)
 end)
 
 -- shortcut: no DataStore yet, progress resets when you leave
-Players.PlayerAdded:Connect(function(player)
+local function onPlayerAdded(player)
 	local ls = Instance.new("Folder") ls.Name = "leaderstats" ls.Parent = player
 	local fear = Instance.new("IntValue") fear.Name = "Fear" fear.Value = START_FEAR fear.Parent = ls
 	local rb = Instance.new("IntValue") rb.Name = "Rebirths" rb.Parent = ls
@@ -348,7 +353,10 @@ Players.PlayerAdded:Connect(function(player)
 	player:SetAttribute("Multiplier", 1)
 	-- shortcut: one plot on the map; a second player waits for it, per-player plots come with multiplayer
 	state[player] = {rebirths = 0, unlocked = START_BEDROOMS, slots = {}}
-end)
+end
+Players.PlayerAdded:Connect(onPlayerAdded)
+-- players who joined while this script was still loading Jeff
+for _, player in ipairs(Players:GetPlayers()) do onPlayerAdded(player) end
 
 Players.PlayerRemoving:Connect(function(player)
 	state[player] = nil
