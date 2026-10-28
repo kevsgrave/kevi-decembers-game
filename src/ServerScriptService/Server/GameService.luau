@@ -379,7 +379,7 @@ function GameService.Start()
 	rebirthRemote.OnServerInvoke = rebirth
 
 	-- no manual claiming: the pad is only the owner's name sign
-	claimPad.ClaimPrompt:Destroy()
+	local oldPrompt = claimPad:FindFirstChild("ClaimPrompt") if oldPrompt then oldPrompt:Destroy() end
 	claimPad.Transparency = 1
 	claimPad.CanCollide = false
 	claimPad.CanTouch = false
