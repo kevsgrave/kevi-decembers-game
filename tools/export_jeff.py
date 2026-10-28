@@ -1,5 +1,5 @@
 # Bakes Jeff's rig (rigid block parts on bones) and scare animation into a Luau ModuleScript.
-# Run: blender -b art/monsters/jeff/jeff.blend --python tools/export_jeff.py -- out.luau
+# Run: blender -b art/monsters/jeff/jeff.blend --python tools/export_jeff.py -- src/ReplicatedStorage/Shared/JeffAnim.luau
 import bpy, sys, math
 from mathutils import Matrix, Vector
 

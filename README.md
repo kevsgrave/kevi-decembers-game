@@ -24,14 +24,22 @@ Keep the claude-obsidian vault inside this repo (for example a `wiki/` folder) s
 
 ## Jumpscare RNG (v1)
 
-The place file is `JumpscareRNG.rbxl` (save it from Studio with File > Save to File As). The scripts are also kept as source here:
+The place file is `JumpscareRNG.rbxl`. The scripts are kept as source here, laid out the way the LihFolk vault's worked builds do:
 
-- `src/ServerScriptService/GameServer.server.luau`: plot claiming, Fear, egg hatch into the inventory, placing monsters, timed scares, bedroom tier reroll, rebirth.
-- `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button, popups.
+- `src/ReplicatedStorage/Shared/Config.luau`: odds, payouts, prices and rebirth math. The server rolls from it and the client only displays it. It checks itself at startup (odds total 100%).
+- `src/ReplicatedStorage/Shared/Net.luau`: creates every remote in one place (from the vault).
+- `src/ReplicatedStorage/Shared/JeffRig.luau` + `JeffAnim.luau`: Jeff built from `art/monsters/jeff/jeff.blend`, his scare played on each client.
+- `src/ServerScriptService/Server/Main.server.luau`: the only server Script.
+- `src/ServerScriptService/Server/GameService.luau`: plot claiming, hatching into the saved inventory, placing monsters, scares, bedroom tier rerolls, rebirth.
+- `src/ServerScriptService/Server/PlayerData.luau`, `DataTemplate.luau`, `RateLimiter.luau`: session-locked saving and rate limits (from the vault's "Saved Inventory End to End").
+- `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button with a confirm step, popups.
 - `src/StarterPlayerScripts/MonsterAnimator.client.luau`: plays Jeff's scare when the server signals one.
 - `tools/build_plot.luau`: rebuilds the map from the Studio command bar (empty plot in Workspace, claimed contents in `ServerStorage.PlotTemplate`).
-- `src/ReplicatedStorage/JeffRig.luau` + `JeffAnim.luau`: Jeff built from `art/monsters/jeff/jeff.blend`, with his scare played on each client. Regenerate `JeffAnim.luau` with:
+
+Saving in Studio needs Game Settings > Security > Enable Studio Access to API Services. Without it, Studio sessions play unsaved and say so. Studio saves use separate `STUDIO_` keys, so tests never touch live data.
+
+Regenerate `JeffAnim.luau` after changing Jeff in Blender:
 
 ```bash
-blender -b art/monsters/jeff/jeff.blend --python tools/export_jeff.py -- src/ReplicatedStorage/JeffAnim.luau
+blender -b art/monsters/jeff/jeff.blend --python tools/export_jeff.py -- src/ReplicatedStorage/Shared/JeffAnim.luau
 ```

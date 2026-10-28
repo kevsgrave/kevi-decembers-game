@@ -1,7 +1,7 @@
 -- Plays Jeff's Blender scare on this client whenever the server bumps a monster's ScareCount
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local JeffRig = require(ReplicatedStorage:WaitForChild("JeffRig"))
+local JeffRig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JeffRig"))
 
 local playing = {}
 
