@@ -15,7 +15,12 @@ local SAVE_ATTEMPTS = 3
 local MIN_SAVE_SPACING = 6 -- seconds between writes to one key (rule of thumb)
 local IS_STUDIO = RunService:IsStudio()
 
-local store = DataStoreService:GetDataStore(STORE_NAME)
+-- GetDataStore throws in an unpublished place; every call below is pcall'd, so a nil store just means "failed" loads
+local storeOk, store = pcall(DataStoreService.GetDataStore, DataStoreService, STORE_NAME)
+if not storeOk then
+	warn("[PlayerData] DataStores unavailable: " .. tostring(store))
+	store = nil :: any
+end
 
 type Session = { Token: string, JobId: string, ExpiresAt: number }
 type Record = { Data: any?, Session: Session? }

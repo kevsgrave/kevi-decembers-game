@@ -63,11 +63,11 @@ for _, s in ipairs({-1, 1}) do
 end
 studs(P(plot, "BorderBack", Vector3.new(100, 3, 2), CFrame.new(0, 1.5, 55), Color3.fromRGB(50, 80, 190)), 4)
 studs(P(plot, "Carpet", Vector3.new(12, 0.2, 116), CFrame.new(0, 2.1, -4), Color3.fromRGB(255, 50, 130)), 4)
-local claim = P(plot, "ClaimPad", Vector3.new(10, 0.4, 6), CFrame.new(0, 2.3, -58), Color3.fromRGB(80, 255, 120), Enum.Material.Neon)
-local pp = Instance.new("ProximityPrompt") pp.Name = "ClaimPrompt" pp.ActionText = "Claim Plot" pp.ObjectText = "Empty Plot" pp.HoldDuration = 0 pp.MaxActivationDistance = 16 pp.RequiresLineOfSight = false pp.Parent = claim
+-- invisible anchor for the owner's name sign; the plot is claimed automatically when a player joins
+local claim = P(plot, "ClaimPad", Vector3.new(10, 0.4, 6), CFrame.new(0, 2.3, -58), Color3.fromRGB(80, 255, 120), Enum.Material.Neon, {Transparency = 1, CanCollide = false, CanTouch = false})
 local cbb = Instance.new("BillboardGui") cbb.Name = "Sign" cbb.Size = UDim2.fromScale(16, 3.5) cbb.StudsOffset = Vector3.new(0, 6, 0) cbb.Parent = claim
 local ct = Instance.new("TextLabel") ct.Name = "Text" ct.Size = UDim2.fromScale(1,1) ct.BackgroundTransparency = 1 ct.Font = Enum.Font.FredokaOne ct.TextScaled = true
-ct.TextColor3 = Color3.fromRGB(120, 255, 140) ct.Text = "Claim this plot!" ct.Parent = cbb stroke(ct, 4)
+ct.TextColor3 = Color3.fromRGB(120, 255, 140) ct.Text = "" ct.Parent = cbb stroke(ct, 4)
 local contents = Instance.new("Folder") contents.Name = "Contents" contents.Parent = plot
 plot.Parent = workspace
 

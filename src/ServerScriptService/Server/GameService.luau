@@ -29,7 +29,6 @@ local popupRemote, rebirthRemote -- created in Start, from one list
 
 local allowHatch = RateLimiter.new(3, 1.5)
 local allowShowcase = RateLimiter.new(4, 2)
-local allowClaim = RateLimiter.new(2, 0.5)
 local allowRebirth = RateLimiter.new(2, 0.5)
 
 local owner
@@ -301,11 +300,11 @@ local function manualScare(player, b)
 	makeGuest(b.GuestSpot)
 end
 
--- the plot is empty until claimed; claiming copies the bedrooms and egg in and brings back placed monsters
+-- the plot is empty until a player's save loads, then it is theirs automatically: bedrooms and egg copied in, placed monsters back
 local function claim(player)
-	if owner or not allowClaim(player) then return end
+	if owner or player.Parent ~= Players then return end
 	local d = data(player)
-	if not d or not near(player, claimPad, claimPad.ClaimPrompt.MaxActivationDistance) then return end
+	if not d then return end
 	owner = player
 	for _, child in ipairs(template:GetChildren()) do child:Clone().Parent = contents end
 	bedrooms = contents.Bedrooms
@@ -322,24 +321,24 @@ local function claim(player)
 		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b) end)
 		b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
 	end
-	claimPad.ClaimPrompt.Enabled = false
-	claimPad.Transparency = 1
 	claimPad.Sign.Text.Text = player.DisplayName .. "'s Plot"
 	refreshLocks(player)
 	for key, uid in d.Placed do
 		local b = bedrooms:FindFirstChild("Bedroom" .. key)
 		if b and b:GetAttribute("Index") <= Config.unlockedBedrooms(d.Rebirths) then task.spawn(runShowcase, player, b, uid) end
 	end
-	popup(player, "Plot claimed! Hatch the Spooky Egg.")
+	popup(player, "This is your plot! Hatch the Spooky Egg.")
 end
 
-local function unclaim()
+-- shortcut: one plot on the map, so it passes to the next loaded player; per-player plots come with multiplayer
+local function unclaim(leaving)
 	owner = nil
 	bedrooms = nil
 	contents:ClearAllChildren()
-	claimPad.ClaimPrompt.Enabled = true
-	claimPad.Transparency = 0
-	claimPad.Sign.Text.Text = "Claim this plot!"
+	claimPad.Sign.Text.Text = ""
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= leaving and data(p) then claim(p) break end
+	end
 end
 
 -- RemoteFunction: returns (ok, message) for the confirm dialog; takes no arguments
@@ -370,6 +369,7 @@ local function onLoaded(profile)
 	syncTools(player)
 	player.CharacterAdded:Connect(function() task.defer(syncTools, player) end)
 	if profile.Unsaved then popup(player, "Studio test: progress will not be saved") end
+	claim(player)
 end
 
 function GameService.Start()
@@ -378,16 +378,16 @@ function GameService.Start()
 	rebirthRemote = Net.Function("Rebirth")
 	rebirthRemote.OnServerInvoke = rebirth
 
-	claimPad.ClaimPrompt.Triggered:Connect(claim)
-	-- stepping on the pad claims too
-	claimPad.Touched:Connect(function(hit)
-		local player = Players:GetPlayerFromCharacter(hit.Parent)
-		if player then claim(player) end
-	end)
+	-- no manual claiming: the pad is only the owner's name sign
+	claimPad.ClaimPrompt:Destroy()
+	claimPad.Transparency = 1
+	claimPad.CanCollide = false
+	claimPad.CanTouch = false
+	claimPad.Sign.Text.Text = ""
 	PlayerData.OnLoaded(onLoaded)
 	Players.PlayerRemoving:Connect(function(player)
 		lastManual[player] = nil
-		if owner == player then unclaim() end
+		if owner == player then unclaim(player) end
 	end)
 end
 
