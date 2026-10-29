@@ -215,7 +215,7 @@ function RoomStyles.apply(bedroom, tierName)
 	local toHead = Vector3.new(0, 0, f.L)
 	local kidUp = (toHead * math.cos(tilt) + Vector3.yAxis * math.sin(tilt))
 	local kidFace = (Vector3.yAxis * math.cos(tilt) - toHead * math.sin(tilt))
-	local pillow = f.at(bedU, headEnd, style.pillowTop - 0.4) -- collision surfaces read a little high, so sit lower
+	local pillow = f.at(bedU, headEnd, style.pillowTop - 0.15) -- collision surfaces read a little high, so sit lower
 	bedroom.GuestSpot.CFrame = CFrame.lookAt(pillow, pillow + kidFace, kidUp)
 	local sit = f.at(bedU - 0.5, headEnd - 2.2, style.mattressTop)
 	bedroom.GuestSpot:SetAttribute("SitPoint", CFrame.lookAt(sit, sit + Vector3.new(-f.side, 0, 0)))

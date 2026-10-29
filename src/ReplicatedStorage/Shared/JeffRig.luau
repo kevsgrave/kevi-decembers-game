@@ -27,27 +27,34 @@ for _, p in ipairs(data.parts) do
 	parts[name].def = {color = Color3.fromRGB(col[1], col[2], col[3]), shape = shape}
 end
 
-local function boneAt(f, i)
+local function boneAt(f, i, ox, oz)
 	local fa = math.floor(f)
 	local fb = math.min(fa + 1, #data.frames)
 	local a, b = data.frames[fa][i], data.frames[fb][i]
 	local t = f - fa
-	local ca = CFrame.new(a[1] - ax, a[2], a[3] - az, a[4], a[5], a[6], a[7])
-	local cb = CFrame.new(b[1] - ax, b[2], b[3] - az, b[4], b[5], b[6], b[7])
+	local ca = CFrame.new(a[1] - ox, a[2], a[3] - oz, a[4], a[5], a[6], a[7])
+	local cb = CFrame.new(b[1] - ox, b[2], b[3] - oz, b[4], b[5], b[6], b[7])
 	local sa, sb = Vector3.new(a[8], a[9], a[10]), Vector3.new(b[8], b[9], b[10])
 	return ca:Lerp(cb, t), sa:Lerp(sb, t)
 end
 
--- pose every part of `model` at sampled frame f (may be fractional), relative to `origin` (default: its spot)
-function JeffRig.pose(model, f, origin)
+-- pose every part of `model` at sampled frame f (may be fractional), relative to `origin` (default: its spot).
+-- inPlace cancels the root's travel for that frame, so the sneak's steps can be walked along any path.
+function JeffRig.pose(model, f, origin, inPlace)
 	origin = origin or model:GetAttribute("Origin")
+	local ox, oz = ax, az
+	if inPlace then
+		local fa = math.floor(f)
+		local a, b = data.frames[fa][boneIndex.Root], data.frames[math.min(fa + 1, #data.frames)][boneIndex.Root]
+		ox, oz = a[1] + (b[1] - a[1]) * (f - fa), a[3] + (b[3] - a[3]) * (f - fa)
+	end
 	local bones = {}
 	for name, info in pairs(parts) do
 		local part = model:FindFirstChild(name)
 		if part then
 			local b = bones[info.bone]
 			if not b then
-				b = {boneAt(f, info.bone)}
+				b = {boneAt(f, info.bone, ox, oz)}
 				bones[info.bone] = b
 			end
 			local cf, s = b[1], b[2]
@@ -84,6 +91,64 @@ function JeffRig.build(parent, origin)
 	return model
 end
 
+-- One scare in a bedroom: Jeff sneaks from the crawl hole along a path to the bed (the clip's sneak steps, in place),
+-- turns and pops up at the kid (the clip's own ending), then sneaks back to the hole. Slower monsters take their time;
+-- a fast tier speeds the whole thing up so it always fits inside its scare timer.
+JeffRig.WALK_LAST = 31 -- sampled frames 1-31 are the sneak; 31-75 turn to the bed and pop
+JeffRig.POP = 53 -- sampled frame where he pops up at the kid
+local BASE_WALK_SPEED = 2.5 -- studs per second, slower than the clip's own sneak
+local CLIP_WALK_SPEED = 4.6 -- studs per second the Blender sneak covers
+local BASE_TURN_FPS = 10.5 -- the turn and pop at 70% speed
+
+function JeffRig.pathLength(path)
+	local len = 0
+	for i = 2, #path do len += (path[i] - path[i - 1]).Magnitude end
+	return len
+end
+
+function JeffRig.timeline(pathLen, interval)
+	local turnFrames = JeffRig.SCARE_LAST - JeffRig.WALK_LAST
+	local baseTotal = 2 * pathLen / BASE_WALK_SPEED + turnFrames / BASE_TURN_FPS
+	local k = math.min(1, interval * 0.9 / baseTotal)
+	local walkSpeed, turnFps = BASE_WALK_SPEED / k, BASE_TURN_FPS / k
+	local walkTime, turnTime = pathLen / walkSpeed, turnFrames / turnFps
+	return {
+		walkSpeed = walkSpeed,
+		stepFps = JeffRig.FPS * walkSpeed / CLIP_WALK_SPEED,
+		turnFps = turnFps,
+		walkTime = walkTime,
+		turnTime = turnTime,
+		pop = walkTime + (JeffRig.POP - JeffRig.WALK_LAST) / turnFps,
+		total = 2 * walkTime + turnTime,
+	}
+end
+
+-- the point `dist` studs along the path, and the direction of travel there
+local function along(path, dist)
+	for i = 2, #path do
+		local seg = path[i] - path[i - 1]
+		if dist <= seg.Magnitude or i == #path then
+			return path[i - 1] + seg.Unit * math.min(dist, seg.Magnitude), seg.Unit
+		end
+		dist -= seg.Magnitude
+	end
+	return path[1], Vector3.zAxis
+end
+
+-- walking pose `t` seconds into a walk along `path` (pass the path reversed to walk back)
+function JeffRig.walk(model, path, t, tl)
+	local pos, dir = along(path, t * tl.walkSpeed)
+	-- the in-place sneak faces the origin's -X, so turn the origin until -X points along the path
+	local origin = CFrame.lookAt(pos, pos + dir) * CFrame.Angles(0, -math.pi / 2, 0)
+	JeffRig.pose(model, 1 + (t * tl.stepFps) % (JeffRig.WALK_LAST - 1), origin, true)
+end
+
+-- standing at the hole, ready to sneak in
+function JeffRig.idle(model, path)
+	local dir = (path[2] - path[1]).Unit
+	JeffRig.pose(model, 1, CFrame.lookAt(path[1], path[1] + dir) * CFrame.Angles(0, -math.pi / 2, 0), true)
+end
+
 -- a small Jeff welded to a Tool's Handle, standing upright on the player's hand
 function JeffRig.buildMini(tool, scale)
 	local handle = Instance.new("Part")
@@ -107,6 +172,13 @@ function JeffRig.buildMini(tool, scale)
 		end
 	end
 	return model
+end
+
+-- self-check: a slow monster gets the full slow scare, a fast one still fits inside its timer
+do
+	local slow, fast = JeffRig.timeline(20, 15), JeffRig.timeline(20, 3.5)
+	assert(slow.total <= 15 and fast.total <= 3.5 and slow.pop < slow.total and fast.pop > 0, "scare timeline")
+	assert(slow.walkSpeed <= fast.walkSpeed, "fast tiers move faster")
 end
 
 return JeffRig

@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
-local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -79,7 +78,34 @@ local function roomOrigin(bedroom)
 	return CFrame.lookAt(stand, stand + Vector3.new(side, 0, 0)) * CFrame.new(-1.5, 0, 0)
 end
 
--- Jeff on display in the case, plus a second Jeff inside the bedroom that loops the Blender scare on every client.
+-- Jeff's route for one scare: in through the crawl hole, across the room clear of the side-wall furniture,
+-- then along the bed to his scare spot (arriving the way the Blender clip expects before it turns to the bed)
+local function scarePath(bedroom, origin)
+	local floor = bedroom.RoomFloor
+	local side = math.sign(floor.Position.X)
+	local L = -side
+	local front = math.abs(bedroom.FrontLow.Position.X)
+	local y = origin.Position.Y
+	local hole = bedroom.CrawlHole.Position
+	local laneZ = floor.Position.Z - L * 8 -- 8 studs from the room's middle, on the hole's side
+	return {
+		Vector3.new(hole.X + side * 1.5, y, hole.Z),
+		Vector3.new(side * (front + 6), y, laneZ),
+		Vector3.new(origin.Position.X, y, laneZ),
+		origin.Position,
+	}
+end
+
+local function setScareRoute(bedroom, roomJeff, interval)
+	local origin = roomOrigin(bedroom)
+	local path = scarePath(bedroom, origin)
+	for i, p in ipairs(path) do roomJeff:SetAttribute("P" .. i, p) end
+	roomJeff:SetAttribute("RoomOrigin", origin)
+	roomJeff:SetAttribute("Interval", interval)
+	return JeffRig.timeline(JeffRig.pathLength(path), interval), path
+end
+
+-- Jeff on display in the case, plus a second Jeff who waits at the bedroom's crawl hole and sneaks in for each scare.
 -- The room Jeff is a child of the display one, so picking the monster up removes both.
 -- A rarity-coloured outline shows his tier (the case also names it).
 local function makeMonster(bedroom, tier)
@@ -88,24 +114,18 @@ local function makeMonster(bedroom, tier)
 	local roomJeff = JeffRig.build(m, roomOrigin(bedroom))
 	roomJeff.Name = "RoomJeff"
 	roomJeff:SetAttribute("Rig", "JeffRoom")
+	local _, path = setScareRoute(bedroom, roomJeff, tier.interval)
+	JeffRig.idle(roomJeff, path)
 	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m
 	return m
 end
 
--- mild scare on each payout: the kid jumps with a "!" bubble (the room Jeff keeps looping his scare regardless)
+-- the kid's reaction at the moment Jeff pops up: it sits bolt upright, jumps and shakes with a "!", then runs off
 local function playScare(bedroom)
 	local guest = bedroom:FindFirstChild("Guest")
 	if guest and guest.Parent then
-		GuestKids.wake(guest)
-		local head = guest.PrimaryPart
-		local bb = Instance.new("BillboardGui") bb.Size = UDim2.fromOffset(60, 60) bb.StudsOffset = Vector3.new(0, 2.5, 0) bb.Parent = head
-		local t = Instance.new("TextLabel") t.Size = UDim2.fromScale(1, 1) t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne
-		t.TextScaled = true t.Text = "!" t.TextColor3 = Color3.fromRGB(255, 230, 60) t.TextStrokeTransparency = 0 t.Parent = bb
-		TweenService:Create(head, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {CFrame = head.CFrame * CFrame.new(0, 2, 0)}):Play()
-		task.wait(0.8)
-		-- kid runs off, room resets with a new kid
+		GuestKids.scare(guest)
 		guest:Destroy()
-		task.wait(0.4)
 	end
 end
 
@@ -202,14 +222,20 @@ local function runShowcase(player, bedroom, uid)
 	showInfo(player, bedroom)
 	-- stops when the monster is picked up, the owner leaves, or the plot is unclaimed
 	local function still() return monster.Parent ~= nil and owner == player and d == data(player) and d.Placed[key] == uid end
+	-- one scare per timer: Jeff sneaks in, the kid reacts and Fear pays out the moment he pops up, then he sneaks back
 	while still() do
-		task.wait(tier.interval)
+		local cycleStart = os.clock()
+		local roomJeff = monster:FindFirstChild("RoomJeff")
+		local tl = setScareRoute(bedroom, roomJeff, tier.interval)
+		roomJeff:SetAttribute("ScareCount", (roomJeff:GetAttribute("ScareCount") or 0) + 1)
+		task.wait(tl.pop)
 		if not still() then break end
 		pay(player, rng:NextInteger(tier.min, tier.max) * bedroom:GetAttribute("Mult"))
 		playScare(bedroom)
 		setBedroomTier(bedroom, Config.pickBedroomTier(rng:NextNumber(0, 100)))
 		showInfo(player, bedroom)
 		makeGuest(bedroom.GuestSpot)
+		task.wait(math.max(0.5, tier.interval - (os.clock() - cycleStart)))
 	end
 end
 
