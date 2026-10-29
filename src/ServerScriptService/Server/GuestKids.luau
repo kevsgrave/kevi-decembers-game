@@ -34,7 +34,12 @@ local function part(model, name, size, cf, color, shape, material)
 	p.Anchored = false p.CanCollide = false p.CanQuery = false p.Massless = true
 	p.Material = material or Enum.Material.SmoothPlastic
 	p.TopSurface = Enum.SurfaceType.Smooth p.BottomSurface = Enum.SurfaceType.Smooth
-	if shape then p.Shape = shape end
+	if shape == Enum.PartType.Ball then
+		-- Ball parts are always round spheres; a sphere mesh on a block gives the ovals (ears, muzzle, body)
+		local mesh = Instance.new("SpecialMesh") mesh.MeshType = Enum.MeshType.Sphere mesh.Parent = p
+	elseif shape then
+		p.Shape = shape
+	end
 	p.Parent = model
 	return p
 end
@@ -64,7 +69,10 @@ function GuestKids.build(parent, cf, kind)
 		add("EyeOpenWhite", Vector3.new(0.08, 0.85, 0.85), eye * FACE_ON, WHITE, CYL)
 		add("EyeOpenPupil", Vector3.new(0.08, 0.62, 0.62), eye * CFrame.new(0, -0.03, -0.05) * FACE_ON, INK, CYL)
 		add("EyeOpenShine", Vector3.new(0.16, 0.16, 0.16), eye * CFrame.new(x * 0.12, 0.12, -0.1), WHITE, BALL)
-		add("EyeClosed", Vector3.new(0.55, 0.09, 0.09), eye * CFrame.new(0, -0.05, -0.04) * CFrame.Angles(0, 0, x * 0.15), INK)
+		-- closed eyes: a soft curve made of two short strokes, so they read as sleepy, not cross
+		for _, half in ipairs({-1, 1}) do
+			add("EyeClosed", Vector3.new(0.3, 0.09, 0.09), eye * CFrame.new(half * 0.13, -0.02, -0.04) * CFrame.Angles(0, 0, half * 0.4), INK)
+		end
 	end
 
 	-- ears and head extras
@@ -91,13 +99,12 @@ function GuestKids.build(parent, cf, kind)
 
 	-- small pajama body with mitten hands and stubby legs
 	add("Body", Vector3.new(1.9, 1.8, 1.5), CFrame.new(0, -2.05, 0.05), k.pajamas, BALL)
-	add("Collar", Vector3.new(0.25, 1.2, 1.2), CFrame.new(0, -1.25, 0.05) * CFrame.Angles(0, 0, math.pi / 2), WHITE, CYL)
 	for i, y in ipairs({-1.75, -2.25}) do
 		add("Button" .. i, Vector3.new(0.18, 0.18, 0.18), CFrame.new(0, y, -0.72), WHITE, BALL)
 	end
 	for _, x in ipairs({-1, 1}) do
 		add("Arm", Vector3.new(0.55, 1.25, 0.55), CFrame.new(x * 1.05, -2.0, 0) * CFrame.Angles(0, 0, x * 0.35), k.pajamas, BALL)
-		add("Hand", Vector3.new(0.55, 0.55, 0.55), CFrame.new(x * 1.3, -2.6, -0.1), WHITE, BALL)
+		add("Hand", Vector3.new(0.55, 0.55, 0.55), CFrame.new(x * 1.22, -2.5, -0.05), WHITE, BALL)
 		add("Leg", Vector3.new(0.7, 1.0, 0.7), CFrame.new(x * 0.45, -3.15, 0.05), k.pants, BALL)
 		add("Foot", Vector3.new(0.75, 0.45, 0.95), CFrame.new(x * 0.45, -3.62, -0.12), k.feet, BALL)
 	end
