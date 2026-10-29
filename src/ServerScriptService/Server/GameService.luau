@@ -11,6 +11,7 @@ local JeffRig = require(Shared:WaitForChild("JeffRig"))
 local Net = require(Shared:WaitForChild("Net"))
 local PlayerData = require(script.Parent.PlayerData)
 local RateLimiter = require(script.Parent.RateLimiter)
+local GuestKids = require(script.Parent.GuestKids)
 
 local GameService = {}
 
@@ -18,11 +19,6 @@ local plot = workspace:WaitForChild("Plot")
 local contents = plot:WaitForChild("Contents")
 local claimPad = plot:WaitForChild("ClaimPad")
 local template = ServerStorage:WaitForChild("PlotTemplate")
-
-local GUEST_COLORS = {
-	Color3.fromRGB(150, 110, 80), Color3.fromRGB(255, 200, 150), Color3.fromRGB(230, 120, 60),
-	Color3.fromRGB(245, 245, 245), Color3.fromRGB(120, 200, 110), Color3.fromRGB(160, 160, 170),
-}
 
 local rng = Random.new()
 local popupRemote, rebirthRemote -- created in Start, from one list
@@ -67,35 +63,10 @@ local function setLabel(part, text, color)
 	if color then t.TextColor3 = color end
 end
 
-local function weld(a, b)
-	local w = Instance.new("WeldConstraint") w.Part0 = a w.Part1 = b w.Parent = a
-end
-
-local function part(model, name, size, cf, color, shape)
-	local p = Instance.new("Part")
-	p.Name = name p.Size = size p.CFrame = cf p.Color = color p.Anchored = false p.CanCollide = false
-	p.Material = Enum.Material.SmoothPlastic
-	if shape then p.Shape = shape end
-	p.Parent = model
-	return p
-end
-
--- shortcut: part-built stand-ins; swap for the art/guests meshes once uploaded
+-- one of the three sleepy kids, asleep in the bed
 local function makeGuest(spot)
 	if spot.Parent:FindFirstChild("Guest") then return end
-	local m = Instance.new("Model") m.Name = "Guest"
-	local c = GUEST_COLORS[rng:NextInteger(1, #GUEST_COLORS)]
-	local cf = spot.CFrame
-	local head = part(m, "Head", Vector3.new(2.4, 2.4, 2.4), cf, c, Enum.PartType.Ball)
-	head.Anchored = true
-	for _, x in ipairs({-0.8, 0.8}) do
-		weld(head, part(m, "Ear", Vector3.new(0.8, 0.8, 0.8), cf * CFrame.new(x, 1.1, 0), c, Enum.PartType.Ball))
-		weld(head, part(m, "Eye", Vector3.new(0.35, 0.35, 0.35), cf * CFrame.new(x * 0.5, 0.2, -1.1), Color3.new(0, 0, 0), Enum.PartType.Ball))
-	end
-	weld(head, part(m, "Body", Vector3.new(2, 1.6, 1.4), cf * CFrame.new(0, -1.7, 0.3), Color3.fromRGB(120, 170, 255)))
-	m.PrimaryPart = head
-	m.Parent = spot.Parent
-	return m
+	return GuestKids.build(spot.Parent, spot.CFrame, rng:NextInteger(1, #GuestKids.KINDS))
 end
 
 -- where Jeff stands to scare: on the window side of the bed, facing the kid
@@ -124,6 +95,7 @@ end
 local function playScare(bedroom)
 	local guest = bedroom:FindFirstChild("Guest")
 	if guest and guest.Parent then
+		GuestKids.wake(guest)
 		local head = guest.PrimaryPart
 		local bb = Instance.new("BillboardGui") bb.Size = UDim2.fromOffset(60, 60) bb.StudsOffset = Vector3.new(0, 2.5, 0) bb.Parent = head
 		local t = Instance.new("TextLabel") t.Size = UDim2.fromScale(1, 1) t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne
