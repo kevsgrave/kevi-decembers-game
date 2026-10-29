@@ -7,7 +7,7 @@ local JeffRig = {}
 JeffRig.SCARE_FIRST = 40 -- sampled frame for Blender frame 79
 JeffRig.SCARE_LAST = #data.frames
 JeffRig.FPS = data.fps
-JeffRig.PEAK = 0.9 -- seconds into the scare when he pops out, used to time the kid's jump
+JeffRig.POP = 53 -- sampled frame where he pops up at the kid
 
 local boneIndex = {}
 for i, name in ipairs(data.bones) do boneIndex[name] = i end
@@ -39,9 +39,18 @@ local function boneAt(f, i)
 	return ca:Lerp(cb, t), sa:Lerp(sb, t)
 end
 
--- pose every part of `model` at sampled frame f (may be fractional), relative to model's pivot
-function JeffRig.pose(model, f)
-	local origin = model:GetAttribute("Origin")
+-- In a bedroom he plays the whole clip (sneak in, turn, pop up). A monster whose scare timer is shorter
+-- than the clip starts partway through the sneak so one scare ends before the next begins.
+function JeffRig.startFrame(interval)
+	return math.clamp(JeffRig.SCARE_LAST - math.floor((interval - 0.6) * JeffRig.FPS), 1, JeffRig.SCARE_FIRST)
+end
+function JeffRig.popTime(interval) -- seconds from the start of the clip to the pop, for timing the kid's jump
+	return (JeffRig.POP - JeffRig.startFrame(interval)) / JeffRig.FPS
+end
+
+-- pose every part of `model` at sampled frame f (may be fractional), relative to `origin` (default: its spot)
+function JeffRig.pose(model, f, origin)
+	origin = origin or model:GetAttribute("Origin")
 	local bones = {}
 	for name, info in pairs(parts) do
 		local part = model:FindFirstChild(name)
@@ -84,5 +93,35 @@ function JeffRig.build(parent, origin)
 	model.Parent = parent
 	return model
 end
+
+-- a small Jeff welded to a Tool's Handle, standing upright on the player's hand
+function JeffRig.buildMini(tool, scale)
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(0.4, 0.4, 0.4)
+	handle.Transparency = 1
+	handle.CanCollide = false
+	handle.Massless = true
+	handle.CFrame = CFrame.new()
+	handle.Parent = tool
+	local model = JeffRig.build(tool, CFrame.new())
+	model.Name = "Mini"
+	model:SetAttribute("Rig", "JeffMini") -- the scare animator ignores it
+	model.WorldPivot = CFrame.new()
+	model:ScaleTo(scale)
+	for _, p in ipairs(model:GetChildren()) do
+		if p:IsA("BasePart") then
+			p.Anchored = false
+			p.Massless = true
+			local w = Instance.new("WeldConstraint") w.Part0 = handle w.Part1 = p w.Parent = p
+		end
+	end
+	return model
+end
+
+-- self-check: a slow monster plays the full clip, a fast one still finishes inside its timer, and the pop is after the start
+assert(JeffRig.startFrame(15) == 1, "slow monsters play the whole clip")
+assert((JeffRig.SCARE_LAST - JeffRig.startFrame(3.5)) / JeffRig.FPS < 3.5, "fast monsters finish before their next scare")
+assert(JeffRig.popTime(3.5) > 0 and JeffRig.popTime(15) > JeffRig.popTime(3.5), "pop timing")
 
 return JeffRig

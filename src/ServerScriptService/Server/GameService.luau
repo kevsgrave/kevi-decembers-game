@@ -98,9 +98,20 @@ local function makeGuest(spot)
 	return m
 end
 
+-- where Jeff stands to scare: on the window side of the bed, facing the kid
+local function roomOrigin(bedroom)
+	local bed, floor = bedroom.BedFrame, bedroom.RoomFloor
+	local side = math.sign(bed.Position.X)
+	local stand = Vector3.new(bed.Position.X - side * (bed.Size.X / 2 + 2.2), floor.Position.Y + floor.Size.Y / 2 + 0.25, bed.Position.Z)
+	-- the clip's sneak walks in from his right (about 9 studs); slide 1.5 studs left so he starts inside the room and ends by the kid
+	return CFrame.lookAt(stand, stand + Vector3.new(side, 0, 0)) * CFrame.new(-1.5, 0, 0)
+end
+
 -- Jeff built from the Blender model; a rarity-coloured outline shows his tier (the case also names it)
-local function makeMonster(spot, tier)
-	local m = JeffRig.build(spot.Parent, spot.CFrame * CFrame.new(0, 0.25, 0))
+local function makeMonster(bedroom, tier)
+	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0))
+	m:SetAttribute("RoomOrigin", roomOrigin(bedroom))
+	m:SetAttribute("Interval", tier.interval)
 	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m
 	return m
 end
@@ -110,7 +121,7 @@ local function playScare(bedroom, monster)
 	local guest = bedroom:FindFirstChild("Guest")
 	if monster then
 		monster:SetAttribute("ScareCount", (monster:GetAttribute("ScareCount") or 0) + 1)
-		task.wait(JeffRig.PEAK)
+		task.wait(JeffRig.popTime(monster:GetAttribute("Interval")))
 	end
 	if guest and guest.Parent then
 		local head = guest.PrimaryPart
@@ -178,8 +189,8 @@ local function syncTools(player)
 		if not placed[uid] and not have[uid] then
 			local tool = Instance.new("Tool")
 			tool.Name = monster.Kind
-			tool.RequiresHandle = false
 			tool.CanBeDropped = false
+			JeffRig.buildMini(tool, 0.3)
 			tool.ToolTip = monster.Tier .. " - place in a display case"
 			tool:SetAttribute("Uid", uid)
 			tool.Parent = backpack
@@ -212,7 +223,7 @@ local function runShowcase(player, bedroom, uid)
 	local tier = d and Config.TIER_BY_NAME[d.Monsters[uid].Tier]
 	if not tier then return end
 	local old = bedroom:FindFirstChild("Monster") if old then old:Destroy() end
-	local monster = makeMonster(bedroom.MonsterSpot, tier)
+	local monster = makeMonster(bedroom, tier)
 	bedroom.ShowcaseGlass.PlacePrompt.ActionText = "Pick Up"
 	showInfo(player, bedroom)
 	-- stops when the monster is picked up, the owner leaves, or the plot is unclaimed
