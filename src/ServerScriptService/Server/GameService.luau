@@ -12,6 +12,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local PlayerData = require(script.Parent.PlayerData)
 local RateLimiter = require(script.Parent.RateLimiter)
 local GuestKids = require(script.Parent.GuestKids)
+local RoomStyles = require(script.Parent.RoomStyles)
 
 local GameService = {}
 
@@ -120,6 +121,7 @@ local function setBedroomTier(bedroom, tier)
 	bedroom:SetAttribute("Tier", tier.name)
 	bedroom:SetAttribute("Mult", tier.mult)
 	setLabel(bedroom.TierSign, tier.name .. " x" .. tier.mult, tier.color)
+	RoomStyles.apply(bedroom, tier.name) -- the room refurnishes itself: Cozy, Fancy or Gold Luxury
 end
 
 -- display case readout: monster name and rarity, then expected Fear per scare under it
