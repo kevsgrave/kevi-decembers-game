@@ -23,7 +23,7 @@ local STYLES = {
 		floor = {Color3.fromRGB(170, 120, 80), Enum.Material.WoodPlanks},
 		walls = nil, -- keep each room's own pastel wallpaper
 		ceiling = Color3.fromRGB(255, 245, 230),
-		bed = "CozyBed", mattressTop = 3.4, blanket = Color3.fromRGB(90, 150, 230),
+		bed = "CozyBed", mattressTop = 3.4, pillowTop = 3.8, blanket = Color3.fromRGB(70, 120, 220),
 		curtains = Color3.fromRGB(255, 220, 120),
 		rug = {Color3.fromRGB(120, 200, 255), Color3.fromRGB(255, 255, 255)},
 		furniture = {
@@ -42,7 +42,7 @@ local STYLES = {
 		trim = Color3.fromRGB(200, 200, 215),
 		crown = Color3.fromRGB(215, 215, 230),
 		ceiling = Color3.fromRGB(250, 248, 255),
-		bed = "FancyBed", mattressTop = 3.6, blanket = Color3.fromRGB(180, 160, 230),
+		bed = "FancyBed", mattressTop = 3.7, pillowTop = 4.4, blanket = Color3.fromRGB(170, 140, 225),
 		curtains = Color3.fromRGB(190, 170, 235),
 		rug = {Color3.fromRGB(205, 200, 220), Color3.fromRGB(240, 240, 250)},
 		furniture = {
@@ -61,7 +61,7 @@ local STYLES = {
 		trim = GOLD,
 		crown = GOLD,
 		ceiling = Color3.fromRGB(120, 20, 35),
-		bed = "LuxuryBed", mattressTop = 3.6, blanket = Color3.fromRGB(190, 25, 45),
+		bed = "LuxuryBed", mattressTop = 3.6, pillowTop = 4.2, blanket = Color3.fromRGB(200, 25, 40),
 		curtains = Color3.fromRGB(180, 20, 40),
 		rug = {Color3.fromRGB(170, 25, 45), GOLD},
 		furniture = {
@@ -207,17 +207,23 @@ function RoomStyles.apply(bedroom, tierName)
 		local light = Instance.new("PointLight") light.Color = l[4] light.Range = 13 light.Brightness = 0.6 light.Parent = glow
 	end
 
-	-- where the kid sleeps: GuestSpot is the pillow point (head end of the mattress), oriented lying down:
-	-- the kid's up points at the headboard and its face points at the ceiling. SitPoint is where it sits up when scared.
-	local headEnd = BED_W + bedSize.Z / 2 - 1.3
-	local pillow = f.at(bedU, headEnd, style.mattressTop)
-	bedroom.GuestSpot.CFrame = CFrame.lookAt(pillow, pillow + Vector3.yAxis, Vector3.new(0, 0, f.L))
+	-- where the kid sleeps: GuestSpot is the top of the kid's head on the pillow, oriented as the kid lies:
+	-- its up axis runs toward the headboard (tilted up a little, as if propped on the pillow) and it faces the ceiling.
+	-- SitPoint is where it sits up when scared. Measured surfaces: mattressTop (middle), pillowTop (head end).
+	local headEnd = BED_W + bedSize.Z / 2 - 1.0
+	local tilt = math.rad(22)
+	local toHead = Vector3.new(0, 0, f.L)
+	local kidUp = (toHead * math.cos(tilt) + Vector3.yAxis * math.sin(tilt))
+	local kidFace = (Vector3.yAxis * math.cos(tilt) - toHead * math.sin(tilt))
+	local pillow = f.at(bedU, headEnd, style.pillowTop - 0.4) -- collision surfaces read a little high, so sit lower
+	bedroom.GuestSpot.CFrame = CFrame.lookAt(pillow, pillow + kidFace, kidUp)
 	local sit = f.at(bedU - 0.5, headEnd - 2.2, style.mattressTop)
 	bedroom.GuestSpot:SetAttribute("SitPoint", CFrame.lookAt(sit, sit + Vector3.new(-f.side, 0, 0)))
-	-- the blanket tucks the kid in from the chest down
-	local blanketLen = bedSize.Z * 0.62
-	block(furnishing, "Blanket", Vector3.new(bedSize.X * 0.8, 0.5, blanketLen),
-		CFrame.new(f.at(bedU, BED_W - bedSize.Z / 2 + blanketLen / 2 + 0.6, style.mattressTop + 1.3)), style.blanket, Enum.Material.Fabric)
+	-- the covers: a soft rounded hump of blanket over the kid's body, from the shoulders to the feet, sitting on the bed
+	local humpLen = 3.6
+	local hump = block(furnishing, "Covers", Vector3.new(4.2, 1.9, humpLen),
+		CFrame.new(f.at(bedU, headEnd - 2.0 - humpLen / 2, style.mattressTop + 0.05)), style.blanket, Enum.Material.Fabric)
+	local mesh = Instance.new("SpecialMesh") mesh.MeshType = Enum.MeshType.Sphere mesh.Parent = hump
 
 	furnishing.Parent = bedroom
 end

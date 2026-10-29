@@ -18,8 +18,8 @@ function GuestKids.build(parent, spot, kind, sitPoint)
 	m.Name = "Guest"
 	m:SetAttribute("Kid", k.name)
 	local h, d = m:GetAttribute("Height"), m:GetAttribute("Depth")
-	-- lying: head top at the pillow point, back on the mattress
-	m:PivotTo(spot * CFrame.new(0, -h / 2, -d / 2))
+	-- lying: head top at the pillow point, back sunk a little into the pillow and mattress
+	m:PivotTo(spot * CFrame.new(0, -h / 2, -(d / 2 - 0.35)))
 	if sitPoint then
 		-- sitting: upright on the mattress, legs sunk under the blanket
 		m:SetAttribute("SitCFrame", sitPoint * CFrame.new(0, h / 2 - 1.2, 0))
