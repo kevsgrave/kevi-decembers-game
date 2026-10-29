@@ -214,7 +214,7 @@ function RoomStyles.apply(bedroom, tierName)
 	-- GuestSpot is the top of the kid's head, oriented as the kid lies: up axis toward the headboard (tilted a little)
 	-- and facing the ceiling. SitPoint is where it sits up when scared.
 	local hump = BedHump.BEDS[style.bed]
-	local headEnd = BED_W + hump.fold + 2.4
+	local headEnd = BED_W + hump.fold + 3.2 -- head clear of the quilt edge, resting by the pillow
 	local tilt = math.rad(18) -- head propped up on the pillow so the face shows
 	local toHead = Vector3.new(0, 0, f.L)
 	local kidUp = (toHead * math.cos(tilt) + Vector3.yAxis * math.sin(tilt))

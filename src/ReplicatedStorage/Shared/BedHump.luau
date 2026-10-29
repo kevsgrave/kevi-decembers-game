@@ -9,7 +9,7 @@ local BedHump = {}
 -- mattressTop = height of the sleeping surface above the floor (studs). The lump sits from the shoulders down.
 BedHump.BEDS = {
 	CozyBed = {fold = 0.5, mattressTop = 3.4},
-	FancyBed = {fold = 1.0, mattressTop = 3.7},
+	FancyBed = {fold = 0.3, mattressTop = 3.7}, -- tall pillows: keep the head in front of them
 	LuxuryBed = {fold = 1.5, mattressTop = 3.6},
 }
 BedHump.HEIGHT = 1.7 -- studs the quilt rises over the kid
