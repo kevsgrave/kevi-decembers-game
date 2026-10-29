@@ -1,4 +1,5 @@
--- Jumpscare RNG: claim plot, egg -> saved inventory -> place in showcase -> timed scares -> Fear -> rebirth
+-- Jumpscare RNG: 8 plots in a ring around a hub. Each player gets a plot when their save loads.
+-- Hub egg -> saved inventory -> place in a showcase on your plot -> timed scares -> Fear -> rebirth
 -- The server owns every outcome; prompts and the rebirth remote are rate limited and distance checked.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,12 +13,12 @@ local PlayerData = require(script.Parent.PlayerData)
 local RateLimiter = require(script.Parent.RateLimiter)
 local GuestKids = require(script.Parent.GuestKids)
 local RoomStyles = require(script.Parent.RoomStyles)
+local PlotFrame = require(script.Parent.PlotFrame)
 
 local GameService = {}
 
-local plot = workspace:WaitForChild("Plot")
-local contents = plot:WaitForChild("Contents")
-local claimPad = plot:WaitForChild("ClaimPad")
+local plotsFolder = workspace:WaitForChild("Plots")
+local hub = workspace:WaitForChild("Hub")
 local template = ServerStorage:WaitForChild("PlotTemplate")
 
 local rng = Random.new()
@@ -27,9 +28,19 @@ local allowHatch = RateLimiter.new(3, 1.5)
 local allowShowcase = RateLimiter.new(4, 2)
 local allowRebirth = RateLimiter.new(2, 0.5)
 
-local owner
-local bedrooms -- the claimed plot's Bedrooms folder
+local plotOwner = {} -- [plot Model] = player
+local plotOf = {} -- [player] = plot Model
 local lastManual = {} -- [player] = os.clock() of their last manual scare
+
+local function bedroomsOf(player)
+	local plot = plotOf[player]
+	return plot and plot.Contents:FindFirstChild("Bedrooms")
+end
+
+local function owns(player, inst)
+	local plot = plotOf[player]
+	return plot ~= nil and inst:IsDescendantOf(plot)
+end
 
 local function data(player)
 	local profile = PlayerData.Get(player)
@@ -69,29 +80,33 @@ local function makeGuest(spot)
 	return GuestKids.build(spot.Parent, spot.CFrame, rng:NextInteger(1, #GuestKids.KINDS), spot:GetAttribute("SitPoint"))
 end
 
--- where Jeff stands to scare: on the window side of the bed, facing the kid
+-- where Jeff stands to scare: on the window side of the bed, facing the kid (worked out in plot-local space)
 local function roomOrigin(bedroom)
-	local bed, floor = bedroom.BedFrame, bedroom.RoomFloor
-	local side = math.sign(bed.Position.X)
-	local stand = Vector3.new(bed.Position.X - side * (bed.Size.X / 2 + 2.2), floor.Position.Y + floor.Size.Y / 2 + 0.25, bed.Position.Z)
+	local P = PlotFrame.of(bedroom)
+	local bed = P:PointToObjectSpace(bedroom.BedFrame.Position)
+	local floor = P:PointToObjectSpace(bedroom.RoomFloor.Position)
+	local side = math.sign(bed.X)
+	local stand = Vector3.new(bed.X - side * (bedroom.BedFrame.Size.X / 2 + 2.2), floor.Y + bedroom.RoomFloor.Size.Y / 2 + 0.25, bed.Z)
 	-- the clip's sneak walks in from his right (about 9 studs); slide 1.5 studs left so he starts inside the room and ends by the kid
-	return CFrame.lookAt(stand, stand + Vector3.new(side, 0, 0)) * CFrame.new(-1.5, 0, 0)
+	return P * CFrame.lookAt(stand, stand + Vector3.new(side, 0, 0)) * CFrame.new(-1.5, 0, 0)
 end
 
 -- Jeff's route for one scare: in through the crawl hole, across the room clear of the side-wall furniture,
 -- then along the bed to his scare spot (arriving the way the Blender clip expects before it turns to the bed)
 local function scarePath(bedroom, origin)
-	local floor = bedroom.RoomFloor
-	local side = math.sign(floor.Position.X)
+	local P = PlotFrame.of(bedroom)
+	local floor = P:PointToObjectSpace(bedroom.RoomFloor.Position)
+	local side = math.sign(floor.X)
 	local L = -side
-	local front = math.abs(bedroom.FrontLow.Position.X)
-	local y = origin.Position.Y
-	local hole = bedroom.CrawlHole.Position
-	local laneZ = floor.Position.Z - L * 8 -- 8 studs from the room's middle, on the hole's side
+	local front = math.abs(P:PointToObjectSpace(bedroom.FrontLow.Position).X)
+	local stand = P:PointToObjectSpace(origin.Position)
+	local hole = P:PointToObjectSpace(bedroom.CrawlHole.Position)
+	local laneZ = floor.Z - L * 8 -- 8 studs from the room's middle, on the hole's side
+	local y = stand.Y
 	return {
-		Vector3.new(hole.X + side * 1.5, y, hole.Z),
-		Vector3.new(side * (front + 6), y, laneZ),
-		Vector3.new(origin.Position.X, y, laneZ),
+		P:PointToWorldSpace(Vector3.new(hole.X + side * 1.5, y, hole.Z)),
+		P:PointToWorldSpace(Vector3.new(side * (front + 6), y, laneZ)),
+		P:PointToWorldSpace(Vector3.new(stand.X, y, laneZ)),
 		origin.Position,
 	}
 end
@@ -192,6 +207,7 @@ end
 
 local function refreshLocks(player)
 	local d = data(player)
+	local bedrooms = bedroomsOf(player)
 	if not d or not bedrooms then return end
 	local unlocked = Config.unlockedBedrooms(d.Rebirths)
 	for _, b in ipairs(bedrooms:GetChildren()) do
@@ -219,7 +235,8 @@ local function runShowcase(player, bedroom, uid)
 	bedroom.ShowcaseGlass.PlacePrompt.ActionText = "Pick Up"
 	showInfo(player, bedroom)
 	-- stops when the monster is picked up, the owner leaves, or the plot is unclaimed
-	local function still() return monster.Parent ~= nil and owner == player and d == data(player) and d.Placed[key] == uid end
+	local plot = plotOf[player]
+	local function still() return monster.Parent ~= nil and plot ~= nil and plotOf[player] == plot and d == data(player) and d.Placed[key] == uid end
 	-- one scare per timer: Jeff sneaks in, the kid reacts and Fear pays out the moment he pops up, then he sneaks back
 	while still() do
 		local cycleStart = os.clock()
@@ -238,9 +255,10 @@ local function runShowcase(player, bedroom, uid)
 end
 
 local function hatch(player)
-	if not allowHatch(player) or player ~= owner then return end
+	if not allowHatch(player) then return end
 	local d = data(player)
-	if not d or not near(player, contents.Egg, contents.Egg.HatchPrompt.MaxActivationDistance) then return end
+	local egg = hub.Egg
+	if not d or not near(player, egg, egg.HatchPrompt.MaxActivationDistance) then return end
 	local count = 0
 	for _ in d.Monsters do count += 1 end
 	if count >= Config.INVENTORY_CAP then
@@ -263,7 +281,7 @@ end
 
 -- display case prompt: place the held (or first unplaced) monster, or pick the current one back up
 local function useShowcase(player, b)
-	if not allowShowcase(player) or player ~= owner then return end
+	if not allowShowcase(player) or not owns(player, b) then return end
 	local d = data(player)
 	local index = b:GetAttribute("Index")
 	if not d or index > Config.unlockedBedrooms(d.Rebirths) or not near(player, b.ShowcaseGlass, b.ShowcaseGlass.PlacePrompt.MaxActivationDistance) then return end
@@ -297,7 +315,7 @@ local function useShowcase(player, b)
 end
 
 local function manualScare(player, b)
-	if player ~= owner or not data(player) or not b:FindFirstChild("Guest") then return end
+	if not owns(player, b) or not data(player) or not b:FindFirstChild("Guest") then return end
 	if not near(player, b.CrawlHole, b.CrawlHole.ScarePrompt.MaxActivationDistance) then return end
 	if lastManual[player] and os.clock() - lastManual[player] < Config.MANUAL_COOLDOWN then return end
 	lastManual[player] = os.clock()
@@ -309,44 +327,59 @@ local function manualScare(player, b)
 	makeGuest(b.GuestSpot)
 end
 
--- the plot is empty until a player's save loads, then it is theirs automatically: bedrooms and egg copied in, placed monsters back
+local function sendHome(player)
+	local plot = plotOf[player]
+	local char = player.Character
+	if plot and char then char:PivotTo(plot.SpawnPoint.CFrame + Vector3.new(0, 3, 0)) end
+end
+
+-- plots are empty until a player's save loads; then the first free one is theirs: bedrooms copied in, placed monsters back.
+-- (The vault's tycoon build does the same: assign on profile load, never on PlayerAdded.)
 local function claim(player)
-	if owner or player.Parent ~= Players then return end
+	if plotOf[player] or player.Parent ~= Players then return end
 	local d = data(player)
 	if not d then return end
-	owner = player
-	for _, child in ipairs(template:GetChildren()) do child:Clone().Parent = contents end
-	bedrooms = contents.Bedrooms
-	local egg = contents.Egg
-	egg.HatchPrompt.Triggered:Connect(hatch)
-	egg.BillboardGui.Text.Text = "Spooky Egg - " .. Config.EGG_COST .. " Fear"
-	-- odds generated from Config, shown before anyone spends
-	local odds = Instance.new("BillboardGui") odds.Name = "Odds" odds.Size = UDim2.fromScale(6, 6) odds.StudsOffsetWorldSpace = Vector3.new(6, 2, 0) odds.MaxDistance = 60 odds.Parent = contents.EggPedestal
-	local ot = Instance.new("TextLabel") ot.Size = UDim2.fromScale(1, 1) ot.BackgroundTransparency = 1 ot.Font = Enum.Font.FredokaOne ot.TextScaled = true
-	ot.TextColor3 = Color3.new(1, 1, 1) ot.Text = "Odds\n" .. Config.oddsText() ot.Parent = odds
-	local s = Instance.new("UIStroke") s.Thickness = 3 s.Color = Color3.fromRGB(20, 10, 40) s.Parent = ot
+	local plot
+	for _, p in ipairs(plotsFolder:GetChildren()) do
+		if p:IsA("Model") and not plotOwner[p] then plot = p break end
+	end
+	if not plot then
+		popup(player, "All plots are taken: you are visiting. Your progress is safe.")
+		return
+	end
+	plotOwner[plot], plotOf[player] = player, plot
+	local frame = PlotFrame.of(plot)
+	for _, child in ipairs(template:GetChildren()) do
+		local copy = child:Clone()
+		PlotFrame.place(copy, frame)
+		copy.Parent = plot.Contents
+	end
+	local bedrooms = plot.Contents.Bedrooms
 	for _, b in ipairs(bedrooms:GetChildren()) do
 		setBedroomTier(b, Config.NORMAL_TIER)
 		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b) end)
 		b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
 	end
-	claimPad.Sign.Text.Text = player.DisplayName .. "'s Plot"
+	setLabel(plot.OwnerSign, player.DisplayName .. "'s Plot")
 	refreshLocks(player)
 	for key, uid in d.Placed do
 		local b = bedrooms:FindFirstChild("Bedroom" .. key)
 		if b and b:GetAttribute("Index") <= Config.unlockedBedrooms(d.Rebirths) then task.spawn(runShowcase, player, b, uid) end
 	end
-	popup(player, "This is your plot! Hatch the Spooky Egg.")
+	sendHome(player)
+	popup(player, "This is your plot! Scare a kid through the crawl hole, then hatch an egg in the middle of the map.")
 end
 
--- shortcut: one plot on the map, so it passes to the next loaded player; per-player plots come with multiplayer
 local function unclaim(leaving)
-	owner = nil
-	bedrooms = nil
-	contents:ClearAllChildren()
-	claimPad.Sign.Text.Text = ""
+	local plot = plotOf[leaving]
+	plotOf[leaving] = nil
+	if not plot then return end
+	plotOwner[plot] = nil
+	plot.Contents:ClearAllChildren()
+	setLabel(plot.OwnerSign, "Free plot")
+	-- a visitor who had no plot gets this one
 	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= leaving and data(p) then claim(p) break end
+		if p ~= leaving and data(p) and not plotOf[p] then claim(p) break end
 	end
 end
 
@@ -363,7 +396,7 @@ local function rebirth(player, ...)
 	d.Rebirths += 1
 	setFear(player, d, 0)
 	publishRebirth(player, d)
-	if player == owner then refreshLocks(player) end
+	refreshLocks(player)
 	task.spawn(PlayerData.SaveNowAsync, player)
 	return true, "Rebirth! New bedroom unlocked, x" .. Config.rebirthMult(d.Rebirths) .. " Fear"
 end
@@ -376,7 +409,10 @@ local function onLoaded(profile)
 	ls.Parent = player
 	publishRebirth(player, d)
 	syncTools(player)
-	player.CharacterAdded:Connect(function() task.defer(syncTools, player) end)
+	player.CharacterAdded:Connect(function()
+		task.defer(syncTools, player)
+		task.defer(sendHome, player)
+	end)
 	if profile.Unsaved then popup(player, "Studio test: progress will not be saved") end
 	claim(player)
 end
@@ -387,16 +423,19 @@ function GameService.Start()
 	rebirthRemote = Net.Function("Rebirth")
 	rebirthRemote.OnServerInvoke = rebirth
 
-	-- no manual claiming: the pad is only the owner's name sign
-	local oldPrompt = claimPad:FindFirstChild("ClaimPrompt") if oldPrompt then oldPrompt:Destroy() end
-	claimPad.Transparency = 1
-	claimPad.CanCollide = false
-	claimPad.CanTouch = false
-	claimPad.Sign.Text.Text = ""
+	-- the hub egg: odds generated from Config, shown before anyone spends
+	local egg = hub.Egg
+	egg.HatchPrompt.Triggered:Connect(hatch)
+	egg.BillboardGui.Text.Text = "Spooky Egg - " .. Config.EGG_COST .. " Fear"
+	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")
+	if odds then odds.Text.Text = "Odds\n" .. Config.oddsText() end
+	for _, plot in ipairs(plotsFolder:GetChildren()) do
+		if plot:IsA("Model") then setLabel(plot.OwnerSign, "Free plot") end
+	end
 	PlayerData.OnLoaded(onLoaded)
 	Players.PlayerRemoving:Connect(function(player)
 		lastManual[player] = nil
-		if owner == player then unclaim(player) end
+		unclaim(player)
 	end)
 end
 
