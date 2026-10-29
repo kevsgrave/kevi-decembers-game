@@ -14,7 +14,7 @@ local function watch(bed)
 		local lumpy = BedHump.make(mesh, bed:GetAttribute("BedKind"))
 		if lumpy and bed.Parent then
 			lumpy.Parent = mesh.Parent
-			mesh.LocalTransparencyModifier = 1 -- the plain bed stays for the server; this client shows the lumpy one
+			mesh.Transparency = 1 -- only on this client: the plain bed stays for the server, players see the lumpy one
 		end
 	end)
 end
