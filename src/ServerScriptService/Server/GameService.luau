@@ -107,22 +107,22 @@ local function roomOrigin(bedroom)
 	return CFrame.lookAt(stand, stand + Vector3.new(side, 0, 0)) * CFrame.new(-1.5, 0, 0)
 end
 
--- Jeff built from the Blender model; a rarity-coloured outline shows his tier (the case also names it)
+-- Jeff on display in the case, plus a second Jeff inside the bedroom that loops the Blender scare on every client.
+-- The room Jeff is a child of the display one, so picking the monster up removes both.
+-- A rarity-coloured outline shows his tier (the case also names it).
 local function makeMonster(bedroom, tier)
 	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0))
-	m:SetAttribute("RoomOrigin", roomOrigin(bedroom))
-	m:SetAttribute("Interval", tier.interval)
+	m:SetAttribute("Rig", "JeffDisplay")
+	local roomJeff = JeffRig.build(m, roomOrigin(bedroom))
+	roomJeff.Name = "RoomJeff"
+	roomJeff:SetAttribute("Rig", "JeffRoom")
 	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m
 	return m
 end
 
--- mild scare: clients play Jeff's Blender scare, then the kid jumps with a "!" bubble
-local function playScare(bedroom, monster)
+-- mild scare on each payout: the kid jumps with a "!" bubble (the room Jeff keeps looping his scare regardless)
+local function playScare(bedroom)
 	local guest = bedroom:FindFirstChild("Guest")
-	if monster then
-		monster:SetAttribute("ScareCount", (monster:GetAttribute("ScareCount") or 0) + 1)
-		task.wait(JeffRig.popTime(monster:GetAttribute("Interval")))
-	end
 	if guest and guest.Parent then
 		local head = guest.PrimaryPart
 		local bb = Instance.new("BillboardGui") bb.Size = UDim2.fromOffset(60, 60) bb.StudsOffset = Vector3.new(0, 2.5, 0) bb.Parent = head
@@ -232,7 +232,7 @@ local function runShowcase(player, bedroom, uid)
 		task.wait(tier.interval)
 		if not still() then break end
 		pay(player, rng:NextInteger(tier.min, tier.max) * bedroom:GetAttribute("Mult"))
-		playScare(bedroom, monster)
+		playScare(bedroom)
 		setBedroomTier(bedroom, Config.pickBedroomTier(rng:NextNumber(0, 100)))
 		showInfo(player, bedroom)
 		makeGuest(bedroom.GuestSpot)
@@ -304,7 +304,7 @@ local function manualScare(player, b)
 	if lastManual[player] and os.clock() - lastManual[player] < Config.MANUAL_COOLDOWN then return end
 	lastManual[player] = os.clock()
 	pay(player, Config.MANUAL_BASE * b:GetAttribute("Mult"))
-	playScare(b, nil)
+	playScare(b)
 	if not data(player).Placed[tostring(b:GetAttribute("Index"))] then
 		setBedroomTier(b, Config.pickBedroomTier(rng:NextNumber(0, 100)))
 	end
