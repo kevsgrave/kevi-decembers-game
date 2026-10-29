@@ -109,11 +109,9 @@ end
 -- The room Jeff is a child of the display one, so picking the monster up removes both.
 -- A rarity-coloured outline shows his tier (the case also names it).
 local function makeMonster(bedroom, tier)
-	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0))
-	m:SetAttribute("Rig", "JeffDisplay")
-	local roomJeff = JeffRig.build(m, roomOrigin(bedroom))
+	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0), "JeffDisplay")
+	local roomJeff = JeffRig.build(m, roomOrigin(bedroom), "JeffRoom")
 	roomJeff.Name = "RoomJeff"
-	roomJeff:SetAttribute("Rig", "JeffRoom")
 	local _, path = setScareRoute(bedroom, roomJeff, tier.interval)
 	JeffRig.idle(roomJeff, path)
 	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m

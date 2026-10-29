@@ -68,10 +68,11 @@ function JeffRig.pose(model, f, origin, inPlace)
 	end
 end
 
-function JeffRig.build(parent, origin)
+-- rig names which client animator (if any) drives this Jeff; it is set before parenting so clients see it on arrival
+function JeffRig.build(parent, origin, rig)
 	local model = Instance.new("Model")
 	model.Name = "Monster"
-	model:SetAttribute("Rig", "Jeff")
+	model:SetAttribute("Rig", rig or "Jeff")
 	model:SetAttribute("Origin", origin)
 	for name, info in pairs(parts) do
 		local p = Instance.new("Part")
@@ -159,9 +160,8 @@ function JeffRig.buildMini(tool, scale)
 	handle.Massless = true
 	handle.CFrame = CFrame.new()
 	handle.Parent = tool
-	local model = JeffRig.build(tool, CFrame.new())
+	local model = JeffRig.build(tool, CFrame.new(), "JeffMini") -- the scare animator ignores it
 	model.Name = "Mini"
-	model:SetAttribute("Rig", "JeffMini") -- the scare animator ignores it
 	model.WorldPivot = CFrame.new()
 	model:ScaleTo(scale)
 	for _, p in ipairs(model:GetChildren()) do
