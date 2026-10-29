@@ -12,7 +12,7 @@ BedHump.BEDS = {
 	FancyBed = {fold = 1.0, mattressTop = 3.7},
 	LuxuryBed = {fold = 1.5, mattressTop = 3.6},
 }
-BedHump.HEIGHT = 1.2 -- studs the quilt rises over the kid
+BedHump.HEIGHT = 1.7 -- studs the quilt rises over the kid
 BedHump.SPREAD = Vector2.new(1.1, 1.4) -- studs across / along the bed
 BedHump.BACK = 1.6 -- lump centre, studs from the shoulders toward the feet (keeps the turned-down edge flat)
 

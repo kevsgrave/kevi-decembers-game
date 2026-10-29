@@ -215,11 +215,11 @@ function RoomStyles.apply(bedroom, tierName)
 	-- and facing the ceiling. SitPoint is where it sits up when scared.
 	local hump = BedHump.BEDS[style.bed]
 	local headEnd = BED_W + hump.fold + 2.4
-	local tilt = math.rad(10)
+	local tilt = math.rad(18) -- head propped up on the pillow so the face shows
 	local toHead = Vector3.new(0, 0, f.L)
 	local kidUp = (toHead * math.cos(tilt) + Vector3.yAxis * math.sin(tilt))
 	local kidFace = (Vector3.yAxis * math.cos(tilt) - toHead * math.sin(tilt))
-	local pillow = f.at(bedU, headEnd, hump.mattressTop - 1.0)
+	local pillow = f.at(bedU, headEnd, hump.mattressTop - 0.45)
 	bedroom.GuestSpot.CFrame = CFrame.lookAt(pillow, pillow + kidFace, kidUp)
 	local sit = f.at(bedU - 0.5, headEnd - 2.2, hump.mattressTop)
 	bedroom.GuestSpot:SetAttribute("SitPoint", CFrame.lookAt(sit, sit + Vector3.new(-f.side, 0, 0)))
