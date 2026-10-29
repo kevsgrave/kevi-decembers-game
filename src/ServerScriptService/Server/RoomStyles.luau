@@ -1,6 +1,7 @@
 -- Furnishes a bedroom in one of three styles that match its tier: Cozy (Normal), Fancy (Silver), Gold Luxury (Gold and up).
 -- Furniture models are AI-generated meshes stored in ServerStorage.Furniture; walls, floor, trim, rugs and lights are parts.
--- All spots are given in room coordinates: u = studs in from the front wall, w = studs along the room toward the display case.
+-- Spots are in room coordinates: u = studs in from the front (window) wall, w = studs along the room toward the display case.
+-- The bed stands against the back wall with its long side facing the window, so the sleeping kid is seen side-on.
 local ServerStorage = game:GetService("ServerStorage")
 
 local RoomStyles = {}
@@ -13,20 +14,26 @@ end
 RoomStyles.styleFor = styleFor
 
 local GOLD = Color3.fromRGB(255, 200, 70)
+local BED_W = -5 -- centre of the bed along the room, in the middle of the window's view
+
+-- furniture entries: {model, u, w, facing, y?}. facing: "front" faces the window, "+w"/"-w" face along the room
+-- (use them against the side walls), "ceiling" hangs from the ceiling, "back" is centred on the back wall.
 local STYLES = {
 	Cozy = {
 		floor = {Color3.fromRGB(170, 120, 80), Enum.Material.WoodPlanks},
 		walls = nil, -- keep each room's own pastel wallpaper
 		ceiling = Color3.fromRGB(255, 245, 230),
-		mattressTop = 3.4,
+		bed = "CozyBed", mattressTop = 3.4, blanket = Color3.fromRGB(90, 150, 230),
 		curtains = Color3.fromRGB(255, 220, 120),
 		rug = {Color3.fromRGB(120, 200, 255), Color3.fromRGB(255, 255, 255)},
 		furniture = {
-			{"CozyBed", 15, -5, "bed"},
-			{"CozyNightstand", 15, 3.2, "front"},
-			{"CozyToyChest", 24, -11, "front"},
+			{"CozyNightstand", 26.3, 2.6, "front"},
+			{"CozyBookshelf", 11, -12.3, "+w"},
+			{"CozyDesk", 19, 11.6, "-w"},
+			{"CozyToyChest", 26, 9, "front"},
+			{"CozyRockingHorse", 8, 7, "front"},
 		},
-		lights = {{15, 3.2, 4.6, Color3.fromRGB(255, 170, 90)}}, -- nightstand lamp
+		lights = {{26.3, 2.6, 4.7, Color3.fromRGB(255, 170, 90)}}, -- nightstand lamp
 	},
 	Fancy = {
 		floor = {Color3.fromRGB(235, 232, 240), Enum.Material.Marble},
@@ -35,15 +42,17 @@ local STYLES = {
 		trim = Color3.fromRGB(200, 200, 215),
 		crown = Color3.fromRGB(215, 215, 230),
 		ceiling = Color3.fromRGB(250, 248, 255),
-		mattressTop = 3.6,
+		bed = "FancyBed", mattressTop = 3.6, blanket = Color3.fromRGB(180, 160, 230),
 		curtains = Color3.fromRGB(190, 170, 235),
 		rug = {Color3.fromRGB(205, 200, 220), Color3.fromRGB(240, 240, 250)},
 		furniture = {
-			{"FancyBed", 15, -5, "bed"},
-			{"FancyDresser", 26, 6, "front"},
-			{"FancyArmchair", 23, -11, "front"},
+			{"FancyFloorLamp", 26.3, 2.4, "front"},
+			{"FancyDresser", 11, -12.1, "+w"},
+			{"FancyVanity", 21, 12.5, "-w"},
+			{"FancyWardrobe", 11, 12, "-w"},
+			{"FancyArmchair", 25.5, 9, "front"},
 		},
-		lights = {{27.3, 9, 9, Color3.fromRGB(220, 200, 255), "sconce"}}, -- wall light above the dresser
+		lights = {{26.3, 2.4, 6.2, Color3.fromRGB(220, 200, 255)}}, -- floor lamp shade
 	},
 	Luxury = {
 		floor = {Color3.fromRGB(95, 55, 35), Enum.Material.WoodPlanks},
@@ -52,16 +61,19 @@ local STYLES = {
 		trim = GOLD,
 		crown = GOLD,
 		ceiling = Color3.fromRGB(120, 20, 35),
-		mattressTop = 3.6,
+		bed = "LuxuryBed", mattressTop = 3.6, blanket = Color3.fromRGB(190, 25, 45),
 		curtains = Color3.fromRGB(180, 20, 40),
 		rug = {Color3.fromRGB(170, 25, 45), GOLD},
 		furniture = {
-			{"LuxuryBed", 15, -5, "bed"},
-			{"LuxuryThrone", 24, -11, "front"},
-			{"LuxuryChest", 23, 8, "front"},
-			{"LuxuryChandelier", 7, -5, "ceiling"}, -- in front of the canopy, seen through the window
+			{"LuxurySideTable", 26.3, 2.6, "front"},
+			{"LuxuryWardrobe", 12, -11.9, "+w"},
+			{"LuxuryMirror", 8, 12.5, "-w"},
+			{"LuxuryThrone", 25, 9.5, "front"},
+			{"LuxuryChest", 17, 11.8, "-w"},
+			{"LuxuryPainting", 0, 6, "back", 7.5}, -- over the bedside table, between canopy and corner
+			{"LuxuryChandelier", 11, BED_W, "ceiling"},
 		},
-		lights = {{7, -5, 11, Color3.fromRGB(255, 190, 110)}}, -- chandelier, kept dim for sleeping kids
+		lights = {{11, BED_W, 11, Color3.fromRGB(255, 190, 110)}, {26.3, 2.6, 4.4, Color3.fromRGB(255, 170, 90)}}, -- chandelier and candle, both dim
 	},
 }
 
@@ -88,10 +100,10 @@ local function frame(bedroom)
 	local zc = floor.Position.Z
 	local L = -side -- +w runs toward the display case (the room's left as seen from the aisle)
 	local function at(u, w, y) return Vector3.new(side * (front + u), floorTop + (y or 0), zc + L * w) end
-	return {side = side, L = L, at = at, depth = back - front, half = floor.Size.Z / 2, floorTop = floorTop, height = bedroom.BackWall.Size.Y}
+	return {side = side, L = L, at = at, depth = back - front - 0.5, half = floor.Size.Z / 2, floorTop = floorTop, height = bedroom.BackWall.Size.Y}
 end
 
--- one-time cleanup of the old block furniture; the bed's old frame stays as an invisible anchor
+-- one-time cleanup of the old block furniture; the bed's old frame becomes an invisible anchor Jeff scares from
 local function clearOld(bedroom)
 	for _, name in ipairs(OLD_FURNITURE) do
 		local p = bedroom:FindFirstChild(name)
@@ -106,6 +118,23 @@ local function clearOld(bedroom)
 	if bedroom:GetAttribute("Wallpaper") == nil then
 		bedroom:SetAttribute("Wallpaper", bedroom.BackWall.Color)
 	end
+end
+
+local function place(furnishing, f, modelName, u, w, facing, y)
+	local src = ServerStorage.Furniture:FindFirstChild(modelName)
+	if not src then return end
+	local m = src:Clone()
+	local _, size = m:GetBoundingBox()
+	local look
+	if facing == "+w" then look = Vector3.new(0, 0, f.L)
+	elseif facing == "-w" then look = Vector3.new(0, 0, -f.L)
+	else look = Vector3.new(-f.side, 0, 0) end -- front, back, ceiling: face the window
+	if facing == "back" then u = f.depth - size.Z / 2 - 0.1 end
+	local pos = f.at(u, w, y or 0)
+	if facing == "ceiling" then pos = f.at(u, w, f.height - size.Y - 0.2) end
+	m:PivotTo(CFrame.lookAt(pos, pos + look))
+	m.Parent = furnishing
+	return m
 end
 
 function RoomStyles.apply(bedroom, tierName)
@@ -127,20 +156,18 @@ function RoomStyles.apply(bedroom, tierName)
 	bedroom.RoomFloor.Color = style.floor[1]
 	bedroom.RoomFloor.Material = style.floor[2]
 
-	-- wainscot, trim and crown moulding along the back and side walls (inside faces)
+	-- wainscot, trim and crown moulding along the back and side walls (inside faces), and a ceiling
 	local inset = 0.6
 	local function alongWalls(prefix, height, y, color, material)
-		local back = f.at(f.depth - inset, 0, y)
-		block(furnishing, prefix .. "Back", Vector3.new(0.2, height, f.half * 2 - 1), CFrame.new(back), color, material)
+		block(furnishing, prefix .. "Back", Vector3.new(0.2, height, f.half * 2 - 1), CFrame.new(f.at(f.depth - 0.1, 0, y)), color, material)
 		for _, sgn in ipairs({-1, 1}) do
-			local p = f.at(f.depth / 2, sgn * (f.half - inset), y)
-			block(furnishing, prefix .. "Side", Vector3.new(f.depth - 1, height, 0.2), CFrame.new(p), color, material)
+			block(furnishing, prefix .. "Side", Vector3.new(f.depth - 1, height, 0.2), CFrame.new(f.at(f.depth / 2, sgn * (f.half - inset), y)), color, material)
 		end
 	end
 	if style.wainscot then alongWalls("Wainscot", 4.5, 2.25, style.wainscot) end
 	if style.trim then alongWalls("Trim", 0.45, 4.6, style.trim, Enum.Material.Metal) end
 	if style.crown then alongWalls("Crown", 0.6, f.height - 0.5, style.crown, Enum.Material.Metal) end
-	block(furnishing, "Ceiling", Vector3.new(f.depth, 0.2, f.half * 2), CFrame.new(f.at(f.depth / 2, 0, f.height - 0.15)), style.ceiling)
+	block(furnishing, "Ceiling", Vector3.new(f.depth + 0.5, 0.2, f.half * 2), CFrame.new(f.at(f.depth / 2, 0, f.height - 0.15)), style.ceiling)
 
 	-- curtains either side of the window (window spans w -12..2 on the front wall)
 	for _, w in ipairs({-12.3, 2.3}) do
@@ -148,47 +175,49 @@ function RoomStyles.apply(bedroom, tierName)
 	end
 	block(furnishing, "CurtainRod", Vector3.new(0.3, 0.3, 16.5), CFrame.new(f.at(0.9, -5, 13.2)), GOLD, Enum.Material.Metal)
 
-	-- a round rug with a border
-	local rugCf = CFrame.new(f.at(9, -5, 0.08)) * CFrame.Angles(0, 0, math.pi / 2)
+	-- bed against the back wall, headboard toward +w
+	local bedSrc = ServerStorage.Furniture[style.bed]
+	local _, bedSize = bedSrc:GetBoundingBox() -- X = width (runs in from the back wall), Z = length (along the room)
+	local bedU = f.depth - bedSize.X / 2 - 0.2
+	local bedPos = f.at(bedU, BED_W, 0)
+	local bed = bedSrc:Clone()
+	bed.Name = "Bed"
+	bed:PivotTo(CFrame.lookAt(bedPos, bedPos - Vector3.new(0, 0, f.L)))
+	bed.Parent = furnishing
+	-- Jeff's scare spot is computed from this anchor: in front of the bed, on the window side
+	local anchor = bedroom:FindFirstChild("BedFrame")
+	if anchor then
+		anchor.Size = Vector3.new(bedSize.X, 2, bedSize.Z)
+		anchor.CFrame = CFrame.new(f.at(bedU, BED_W, 1))
+	end
+
+	-- round rug in front of the bed
+	local rugCf = CFrame.new(f.at(bedU - bedSize.X / 2 - 3, BED_W, 0.08)) * CFrame.Angles(0, 0, math.pi / 2)
 	block(furnishing, "RugBorder", Vector3.new(0.12, 11, 11), rugCf, style.rug[2], Enum.Material.Fabric).Shape = Enum.PartType.Cylinder
 	block(furnishing, "Rug", Vector3.new(0.16, 9.6, 9.6), rugCf, style.rug[1], Enum.Material.Fabric).Shape = Enum.PartType.Cylinder
 
-	-- furniture models
 	for _, item in ipairs(style.furniture) do
-		local modelName, u, w, facing = item[1], item[2], item[3], item[4]
-		local src = ServerStorage.Furniture:FindFirstChild(modelName)
-		if src then
-			local m = src:Clone()
-			m.Name = facing == "bed" and "Bed" or modelName
-			local pos = f.at(u, w, 0)
-			local cf
-			if facing == "bed" then
-				cf = CFrame.lookAt(pos, pos - Vector3.new(0, 0, f.L)) -- headboard toward +w
-			elseif facing == "ceiling" then
-				local _, size = m:GetBoundingBox()
-				pos = f.at(u, w, f.height - size.Y - 0.2)
-				cf = CFrame.lookAt(pos, pos + Vector3.new(-f.side, 0, 0))
-			else
-				cf = CFrame.lookAt(pos, pos + Vector3.new(-f.side, 0, 0)) -- face the window
-			end
-			m:PivotTo(cf)
-			m.Parent = furnishing
-		end
+		place(furnishing, f, item[1], item[2], item[3], item[4], item[5])
 	end
 
 	-- dim warm lights: the kids are asleep
 	for _, l in ipairs(style.lights) do
 		local glow = block(furnishing, "NightGlow", Vector3.new(0.6, 0.6, 0.6), CFrame.new(f.at(l[1], l[2], l[3])), l[4], Enum.Material.Neon)
-		glow.Shape = Enum.PartType.Ball
-		if l[5] == "sconce" then glow.Size = Vector3.new(0.5, 1.2, 0.8) glow.Shape = Enum.PartType.Block end
-		glow.Transparency = l[5] == "sconce" and 0 or 1
+		glow.Transparency = 1
 		local light = Instance.new("PointLight") light.Color = l[4] light.Range = 13 light.Brightness = 0.6 light.Parent = glow
 	end
 
-	-- the kid sits up in this style's bed, head above the pillow end
-	local spot = bedroom.GuestSpot
-	local headY = f.floorTop + style.mattressTop + 2.6
-	spot.CFrame = CFrame.new(spot.Position.X, headY, spot.Position.Z) * (spot.CFrame - spot.CFrame.Position)
+	-- where the kid sleeps: GuestSpot is the pillow point (head end of the mattress), oriented lying down:
+	-- the kid's up points at the headboard and its face points at the ceiling. SitPoint is where it sits up when scared.
+	local headEnd = BED_W + bedSize.Z / 2 - 1.3
+	local pillow = f.at(bedU, headEnd, style.mattressTop)
+	bedroom.GuestSpot.CFrame = CFrame.lookAt(pillow, pillow + Vector3.yAxis, Vector3.new(0, 0, f.L))
+	local sit = f.at(bedU - 0.5, headEnd - 2.2, style.mattressTop)
+	bedroom.GuestSpot:SetAttribute("SitPoint", CFrame.lookAt(sit, sit + Vector3.new(-f.side, 0, 0)))
+	-- the blanket tucks the kid in from the chest down
+	local blanketLen = bedSize.Z * 0.62
+	block(furnishing, "Blanket", Vector3.new(bedSize.X * 0.8, 0.5, blanketLen),
+		CFrame.new(f.at(bedU, BED_W - bedSize.Z / 2 + blanketLen / 2 + 0.6, style.mattressTop + 1.3)), style.blanket, Enum.Material.Fabric)
 
 	furnishing.Parent = bedroom
 end

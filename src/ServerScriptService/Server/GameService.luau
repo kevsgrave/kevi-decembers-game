@@ -64,10 +64,10 @@ local function setLabel(part, text, color)
 	if color then t.TextColor3 = color end
 end
 
--- one of the three sleepy kids, asleep in the bed
+-- one of the three kids, lying asleep in the bed (RoomStyles sets the pillow spot for each bed)
 local function makeGuest(spot)
 	if spot.Parent:FindFirstChild("Guest") then return end
-	return GuestKids.build(spot.Parent, spot.CFrame, rng:NextInteger(1, #GuestKids.KINDS))
+	return GuestKids.build(spot.Parent, spot.CFrame, rng:NextInteger(1, #GuestKids.KINDS), spot:GetAttribute("SitPoint"))
 end
 
 -- where Jeff stands to scare: on the window side of the bed, facing the kid
