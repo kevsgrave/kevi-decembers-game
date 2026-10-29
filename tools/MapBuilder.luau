@@ -97,6 +97,11 @@ local function lamp(parent, cf, height)
 	return m
 end
 
+-- generated MaterialVariants live in MaterialService
+local function hasMaterial(name)
+	return game:GetService("MaterialService"):FindFirstChild(name, true) ~= nil
+end
+
 local function folder(name, parent)
 	local old = (parent or workspace):FindFirstChild(name)
 	if old then old:Destroy() end
@@ -212,7 +217,7 @@ function MapBuilder.hub()
 	local R = MapBuilder.PLAZA_RADIUS
 	disc(f, "RingPath", R + MapBuilder.RING_PATH, 0.4, Vector3.new(0, 0.2, 0), DIRT, Enum.Material.Ground)
 	local plaza = disc(f, "Plaza", R, 0.6, Vector3.new(0, 0.3, 0), PLAZA, Enum.Material.Cobblestone)
-	if ServerStorage:FindFirstChild("PlazaStone") then plaza.MaterialVariant = "PlazaStone" end
+	if hasMaterial("PlazaStone") then plaza.MaterialVariant = "PlazaStone" end
 	disc(f, "PlazaRim", R + 0.8, 0.5, Vector3.new(0, 0.25, 0), STONE_LIGHT)
 
 	-- egg shrine in the middle: the core spend is the centrepiece and is visible from every path
@@ -284,7 +289,7 @@ function MapBuilder.paths()
 		local mid = (inner + outer) / 2
 		local cf = ringCF(mid, a, 0.15)
 		local path = P(f, "Path", Vector3.new(16, 0.3, outer - inner + 2), cf, DIRT, Enum.Material.Ground)
-		if ServerStorage:FindFirstChild("DirtPath") then path.MaterialVariant = "DirtPath" end
+		if hasMaterial("DirtPath") then path.MaterialVariant = "DirtPath" end
 		studs(path, 4)
 		for _, r in ipairs({inner + 14, inner + 38, outer - 6}) do
 			for _, off in ipairs({-10, 10}) do lamp(f, ringCF(r, a, 0) * CFrame.new(off, 0, 0), 9) end
@@ -431,7 +436,7 @@ function MapBuilder.exteriors()
 		local siding = SIDING[(idx - 1) % #SIDING + 1]
 		local function sidingPart(name, size, cf)
 			local p = P(ex, name, size, cf, siding, Enum.Material.WoodPlanks)
-			if ServerStorage:FindFirstChild("HouseSiding") then p.MaterialVariant = "HouseSiding" end
+			if hasMaterial("HouseSiding") then p.MaterialVariant = "HouseSiding" end
 			deco(p)
 			return p
 		end
