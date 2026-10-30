@@ -71,6 +71,9 @@ local function disc(parent, name, radius, thick, centre, color, mat)
 end
 
 -- clone a generated kit model, scale it to a target height and stand it at cf (its pivot is the base centre)
+-- the generated kit models face their local +X; turn them so cf's -Z (the CFrame.lookAt direction) is their front
+local KIT_FRONT = CFrame.Angles(0, math.rad(90), 0)
+
 local function kit(name, parent, cf, height)
 	local src = ServerStorage.MapKit:FindFirstChild(name)
 	if not src then return nil end
@@ -79,7 +82,7 @@ local function kit(name, parent, cf, height)
 		local _, size = m:GetBoundingBox()
 		m:ScaleTo(height / size.Y)
 	end
-	m:PivotTo(cf)
+	m:PivotTo(cf * KIT_FRONT)
 	m.Parent = parent
 	return m
 end
@@ -183,8 +186,7 @@ local function plotShell(parent, i)
 		kit("StonePillar", m, L(xz[1], 0, xz[2]), 7)
 	end
 	-- entrance arch at the front of the carpet, with the owner's name on it
-	-- the generated arch is modelled across its local Z, so turn it to span the carpet
-	local arch = kit("PlotArch", m, L(0, 2, -63) * CFrame.Angles(0, math.rad(90), 0), 15)
+	local arch = kit("PlotArch", m, L(0, 2, -63), 15)
 	local archTop = 15
 	if arch then local acf, asz = arch:GetBoundingBox() archTop = acf.Position.Y + asz.Y / 2 - frame.Position.Y end
 	local sign = P(m, "OwnerSign", Vector3.new(14, 2.6, 0.5), L(0, archTop + 1.6, -64.6), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
@@ -195,7 +197,7 @@ local function plotShell(parent, i)
 		for _, x in ipairs({-8.5, 8.5}) do lamp(m, L(x, 2, z), 9) end
 	end
 	for _, z in ipairs({-16, 16}) do
-		for _, x in ipairs({-9.5, 9.5}) do kit("Planter", m, L(x, 2, z) * CFrame.Angles(0, math.rad(90), 0), 3) end
+		for _, x in ipairs({-9.5, 9.5}) do kit("Planter", m, L(x, 2, z) * CFrame.Angles(0, math.rad(x > 0 and 90 or -90), 0), 3) end
 	end
 	for _, xz in ipairs({{-42, -57}, {42, -57}, {-42, 50}, {42, 50}}) do kit("Pumpkins", m, L(xz[1], 2, xz[2]) * CFrame.Angles(0, math.rad(xz[1] * 3), 0), 2.6) end
 	-- where the owner arrives: just inside the arch, facing their bedrooms
@@ -268,7 +270,7 @@ function MapBuilder.hub()
 	kit("Cauldron", f, ringCF(R - 12, 202.5, 0.6), 5)
 	-- planters ring the dais, and pine trees frame the plaza between the paths
 	for k = 1, MapBuilder.PLOT_COUNT do
-		kit("Planter", f, ringCF(20, plotAngle(k) + 22.5, 0.6) * CFrame.Angles(0, math.rad(90), 0), 3)
+		kit("Planter", f, ringCF(20, plotAngle(k) + 22.5, 0.6), 3)
 		kit("PineTree", f, ringCF(R - 4, plotAngle(k) + 30, 0.6), 18)
 	end
 	-- floating ghost lights over the plaza
