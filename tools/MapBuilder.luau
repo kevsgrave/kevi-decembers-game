@@ -11,7 +11,7 @@ local MapBuilder = {}
 
 MapBuilder.PLOT_COUNT = 8
 MapBuilder.RING_RADIUS = 210 -- hub centre to each plot's local origin; plot fronts sit 62 studs closer
-MapBuilder.PLAZA_RADIUS = 70
+MapBuilder.PLAZA_RADIUS = 50
 MapBuilder.RING_PATH = 12 -- width of the path circling the plaza
 MapBuilder.TREE_RING = {300, 440} -- forest band beyond the plots
 MapBuilder.SEED = 20261029
@@ -21,8 +21,8 @@ local PLOT_BLUE = Color3.fromRGB(70, 110, 230)
 local CARPET_PINK = Color3.fromRGB(255, 50, 130)
 local STONE = Color3.fromRGB(105, 98, 135)
 local STONE_LIGHT = Color3.fromRGB(150, 142, 180)
-local DIRT = Color3.fromRGB(125, 88, 60)
-local PLAZA = Color3.fromRGB(92, 84, 120)
+local DIRT = Color3.fromRGB(150, 112, 78)
+local PLAZA = Color3.fromRGB(150, 140, 185)
 local GRASS = Color3.fromRGB(60, 170, 60)
 local LANTERN = Color3.fromRGB(255, 170, 80)
 
@@ -131,7 +131,7 @@ function MapBuilder.lighting()
 	Lighting.ExposureCompensation = 0.3
 	Lighting.FogColor = Color3.fromRGB(60, 45, 100)
 	local atm = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere", Lighting)
-	atm.Density = 0.32 atm.Offset = 0.1 atm.Color = Color3.fromRGB(150, 120, 220) atm.Decay = Color3.fromRGB(70, 50, 130) atm.Glare = 0 atm.Haze = 1.2
+	atm.Density = 0.22 atm.Offset = 0.05 atm.Color = Color3.fromRGB(150, 120, 220) atm.Decay = Color3.fromRGB(70, 50, 130) atm.Glare = 0 atm.Haze = 0.6
 	workspace.Baseplate.Color = GRASS
 	return "lighting set"
 end
@@ -183,8 +183,11 @@ local function plotShell(parent, i)
 		kit("StonePillar", m, L(xz[1], 0, xz[2]), 7)
 	end
 	-- entrance arch at the front of the carpet, with the owner's name on it
-	kit("PlotArch", m, L(0, 2, -63), 15)
-	local sign = P(m, "OwnerSign", Vector3.new(14, 2.6, 0.5), L(0, 12.6, -64.4), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
+	-- the generated arch is modelled across its local Z, so turn it to span the carpet
+	local arch = kit("PlotArch", m, L(0, 2, -63) * CFrame.Angles(0, math.rad(90), 0), 15)
+	local archTop = 15
+	if arch then local acf, asz = arch:GetBoundingBox() archTop = acf.Position.Y + asz.Y / 2 - frame.Position.Y end
+	local sign = P(m, "OwnerSign", Vector3.new(14, 2.6, 0.5), L(0, archTop + 1.6, -64.6), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
 	deco(sign)
 	label(sign, Enum.NormalId.Front, "Free plot", Color3.fromRGB(120, 255, 140))
 	-- lamps along the carpet, planters between the bedroom rows
@@ -221,9 +224,11 @@ function MapBuilder.hub()
 	disc(f, "PlazaRim", R + 0.8, 0.5, Vector3.new(0, 0.25, 0), STONE_LIGHT)
 
 	-- egg shrine in the middle: the core spend is the centrepiece and is visible from every path
-	local shrine = kit("EggShrine", f, CFrame.new(0, 0.6, 0), 5)
-	local top = 0.6 + 5
-	local egg = kit("SpookyEgg", f, CFrame.new(0, top, 0), 6)
+	disc(f, "DaisStep", 15, 0.6, Vector3.new(0, 0.9, 0), STONE_LIGHT, Enum.Material.Slate)
+	disc(f, "Dais", 12.5, 1.2, Vector3.new(0, 1.2, 0), STONE, Enum.Material.Slate)
+	local shrine = kit("EggShrine", f, CFrame.new(0, 1.8, 0), 7)
+	local top = 1.8 + 7
+	local egg = kit("SpookyEgg", f, CFrame.new(0, top, 0), 8)
 	local eggPart
 	if egg then
 		eggPart = egg:FindFirstChildWhichIsA("MeshPart", true)
@@ -240,13 +245,13 @@ function MapBuilder.hub()
 	t.TextColor3 = Color3.fromRGB(255, 220, 80) t.Text = "Spooky Egg" t.Parent = bb stroke(t, 4)
 	local glow = Instance.new("PointLight") glow.Color = Color3.fromRGB(190, 120, 255) glow.Range = 22 glow.Brightness = 1.5 glow.Parent = eggPart
 	-- odds board facing the main approach
-	local board = P(f, "EggOdds", Vector3.new(7, 8, 0.5), CFrame.new(0, 4.6, -12), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
+	local board = P(f, "EggOdds", Vector3.new(7, 8, 0.5), CFrame.new(0, 5.2, -17), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
 	board.CFrame = CFrame.lookAt(board.Position, Vector3.new(0, board.Position.Y, -60))
 	label(board, Enum.NormalId.Front, "Odds", Color3.new(1, 1, 1))
 	for _, x in ipairs({-3.2, 3.2}) do deco(P(f, "OddsPost", Vector3.new(0.5, 9, 0.5), board.CFrame * CFrame.new(x, -0.5, 0.3), Color3.fromRGB(70, 45, 30), Enum.Material.Wood)) end
 
 	-- shop stall between two paths, facing the centre (the rotating shop is not built yet)
-	local shopCF = ringCF(R - 14, 22.5, 0.6)
+	local shopCF = ringCF(R - 12, 22.5, 0.6)
 	kit("ShopStall", f, shopCF, 12)
 	local shopSign = P(f, "ShopSign", Vector3.new(10, 2.4, 0.4), shopCF * CFrame.new(0, 13.5, -1), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
 	deco(shopSign)
@@ -256,15 +261,20 @@ function MapBuilder.hub()
 	for k = 1, MapBuilder.PLOT_COUNT do
 		local a = plotAngle(k)
 		for _, off in ipairs({-9, 9}) do lamp(f, ringCF(R + 4, a, 0.4) * CFrame.new(off, 0, 0), 10) end
-		if k ~= 1 then kit("Bench", f, ringCF(R - 6, a + 22.5, 0.6), 3.2) end
+		if k ~= 1 and k ~= 5 then kit("Bench", f, ringCF(R - 7, a + 15, 0.6), 3.2) end
 		kit("Pumpkins", f, ringCF(R - 3, a + 12, 0.6), 2.6)
 	end
-	for k = 1, 6 do kit("Pumpkins", f, ringCF(9, k * 60, 0.6), 2.2) end
-	kit("Cauldron", f, ringCF(R - 16, 202.5, 0.6), 5)
+	for k = 1, 8 do kit("Pumpkins", f, ringCF(14, k * 45 + 22.5, 1.5), 2.4) end
+	kit("Cauldron", f, ringCF(R - 12, 202.5, 0.6), 5)
+	-- planters ring the dais, and pine trees frame the plaza between the paths
+	for k = 1, MapBuilder.PLOT_COUNT do
+		kit("Planter", f, ringCF(20, plotAngle(k) + 22.5, 0.6) * CFrame.Angles(0, math.rad(90), 0), 3)
+		kit("PineTree", f, ringCF(R - 4, plotAngle(k) + 30, 0.6), 18)
+	end
 	-- floating ghost lights over the plaza
 	for k = 1, 6 do
 		local a = math.rad(k * 60 + 30)
-		local g = P(f, "GhostLight", Vector3.new(2.5, 3, 2.5), CFrame.new(math.sin(a) * 34, 14 + (k % 3) * 2, math.cos(a) * 34), Color3.fromRGB(220, 255, 255), Enum.Material.Neon, {Shape = Enum.PartType.Ball, Transparency = 0.25, CanCollide = false})
+		local g = P(f, "GhostLight", Vector3.new(1, 1, 1), CFrame.new(math.sin(a) * 34, 14 + (k % 3) * 2, math.cos(a) * 34), Color3.fromRGB(150, 255, 220), Enum.Material.Neon, {Shape = Enum.PartType.Ball, Transparency = 0.4, CanCollide = false})
 		deco(g)
 		local l = Instance.new("PointLight") l.Color = Color3.fromRGB(160, 255, 255) l.Range = 16 l.Brightness = 0.8 l.Shadows = false l.Parent = g
 	end
@@ -289,7 +299,6 @@ function MapBuilder.paths()
 		local mid = (inner + outer) / 2
 		local cf = ringCF(mid, a, 0.15)
 		local path = P(f, "Path", Vector3.new(16, 0.3, outer - inner + 2), cf, DIRT, Enum.Material.Ground)
-		if hasMaterial("DirtPath") then path.MaterialVariant = "DirtPath" end
 		studs(path, 4)
 		for _, r in ipairs({inner + 14, inner + 38, outer - 6}) do
 			for _, off in ipairs({-10, 10}) do lamp(f, ringCF(r, a, 0) * CFrame.new(off, 0, 0), 9) end
@@ -344,7 +353,7 @@ function MapBuilder.scenery()
 			local a = (j + rng:NextNumber(-0.35, 0.35)) * 360 / count + ring * 7
 			local r = r0 + rng:NextNumber(-10, 10)
 			local name = trees[rng:NextInteger(1, #trees)]
-			local h = (name == "PineTree" and 22 or name == "SpookyTree" and 17 or 15) * rng:NextNumber(0.8, 1.35)
+			local h = (name == "PineTree" and 26 or name == "SpookyTree" and 20 or 18) * rng:NextNumber(0.85, 1.4)
 			kit(name, f, ringCF(r, a) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0), h)
 			n += 1
 		end
@@ -359,8 +368,8 @@ function MapBuilder.scenery()
 	for j = 1, 14 do
 		local a = j * 360 / 14 + rng:NextNumber(-8, 8)
 		local r = rng:NextNumber(470, 540)
-		local w = rng:NextNumber(90, 150)
-		local hill = P(f, "Hill", Vector3.new(w, rng:NextNumber(40, 70), w * rng:NextNumber(0.7, 1.1)), ringCF(r, a, 0), Color3.fromRGB(45, 130, 55), Enum.Material.Grass)
+		local w = rng:NextNumber(120, 190)
+		local hill = P(f, "Hill", Vector3.new(w, rng:NextNumber(80, 130), w * rng:NextNumber(0.7, 1.1)), ringCF(r, a, 0), Color3.fromRGB(45, 130, 55), Enum.Material.Grass)
 		local mesh = Instance.new("SpecialMesh") mesh.MeshType = Enum.MeshType.Sphere mesh.Parent = hill
 		deco(hill)
 	end
@@ -375,7 +384,7 @@ function MapBuilder.scenery()
 	for j = 1, 10 do
 		local a = math.rad(j * 36 + 10)
 		local r = rng:NextNumber(280, 360)
-		local g = P(f, "GhostLight", Vector3.new(3, 3.6, 3), CFrame.new(math.sin(a) * r, rng:NextNumber(14, 26), math.cos(a) * r), Color3.fromRGB(220, 255, 255), Enum.Material.Neon, {Shape = Enum.PartType.Ball, Transparency = 0.25, CanCollide = false})
+		local g = P(f, "GhostLight", Vector3.new(1.4, 1.4, 1.4), CFrame.new(math.sin(a) * r, rng:NextNumber(14, 26), math.cos(a) * r), Color3.fromRGB(150, 255, 220), Enum.Material.Neon, {Shape = Enum.PartType.Ball, Transparency = 0.4, CanCollide = false})
 		deco(g)
 		local l = Instance.new("PointLight") l.Color = Color3.fromRGB(160, 255, 255) l.Range = 20 l.Brightness = 0.8 l.Shadows = false l.Parent = g
 	end
@@ -406,9 +415,9 @@ end
 -- a stone plinth, a framed window with shutters and a flower box, an arched crawl hole, a wall lantern,
 -- a wooden tier sign under the eaves, a generated roof and a chimney with a little smoke.
 -- Everything goes in the bedroom's "Exterior" model, so the interior styles never touch it.
-local SIDING = {
-	Color3.fromRGB(255, 232, 214), Color3.fromRGB(214, 230, 255), Color3.fromRGB(222, 248, 214),
-	Color3.fromRGB(255, 243, 196), Color3.fromRGB(234, 222, 255), Color3.fromRGB(255, 222, 210),
+local SIDING = { -- light tints: the siding material's own texture is darker
+	Color3.fromRGB(255, 245, 235), Color3.fromRGB(235, 245, 255), Color3.fromRGB(240, 255, 235),
+	Color3.fromRGB(255, 252, 225), Color3.fromRGB(248, 240, 255), Color3.fromRGB(255, 238, 232),
 }
 local SHUTTER = {
 	Color3.fromRGB(150, 70, 170), Color3.fromRGB(60, 110, 200), Color3.fromRGB(60, 150, 90),
@@ -481,9 +490,12 @@ function MapBuilder.exteriors()
 		if probe then
 			local _, bs = probe:GetBoundingBox()
 			probe:Destroy()
-			local n = math.max(1, math.floor(ww / (bs.X * 0.95)))
+			-- keep clear of the crawl hole, which sits under the hole-side end of the window
+			local span = ww - 5
+			local n = math.max(1, math.floor(span / (bs.X * 0.95)))
+			local mid = wz + L * 2.5 -- shift the row toward the display-case side
 			for k = 1, n do
-				local boxPos = Vector3.new(s * (front - 1.5), wy - wh / 2 - 1.75, wz + (k - (n + 1) / 2) * (ww / n))
+				local boxPos = Vector3.new(s * (front - 1.5), wy - wh / 2 - 1.75, mid + (k - (n + 1) / 2) * (span / n))
 				kit("FlowerBox", ex, CFrame.lookAt(boxPos, boxPos + Vector3.new(-s, 0, 0)), 1.8)
 			end
 		end
