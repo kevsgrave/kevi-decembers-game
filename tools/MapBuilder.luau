@@ -13,8 +13,8 @@ MapBuilder.PLOT_COUNT = 8
 MapBuilder.RING_RADIUS = 210 -- hub centre to each plot's local origin; plot fronts sit 62 studs closer
 MapBuilder.PLAZA_RADIUS = 50
 MapBuilder.RING_PATH = 12 -- width of the path circling the plaza
-MapBuilder.TREE_RING = {300, 440} -- forest band beyond the plots
 MapBuilder.SEED = 20261029
+MapBuilder.WALK_SPEED = 30 -- the map is big: default 16 feels slow
 
 local STUDS = "rbxassetid://6372755229"
 local PLOT_BLUE = Color3.fromRGB(70, 110, 230)
@@ -127,6 +127,7 @@ local function plotAngle(i) return (i - 1) * 360 / MapBuilder.PLOT_COUNT end
 --------------------------------------------------------------------------- lighting
 
 function MapBuilder.lighting()
+	game:GetService("StarterPlayer").CharacterWalkSpeed = MapBuilder.WALK_SPEED
 	Lighting.ClockTime = 0
 	Lighting.Brightness = 2
 	Lighting.Ambient = Color3.fromRGB(110, 90, 160)
@@ -167,9 +168,9 @@ local function plotShell(parent, i)
 
 	-- platform
 	studs(P(m, "Floor", Vector3.new(96, 2, 116), L(0, 1, -4), PLOT_BLUE), 4)
-	studs(P(m, "Carpet", Vector3.new(12, 0.2, 117), L(0, 2.1, -4.5), CARPET_PINK, Enum.Material.Fabric), 4)
+	studs(P(m, "Carpet", Vector3.new(12, 0.2, 128), L(0, 2.1, -10), CARPET_PINK, Enum.Material.Fabric), 4)
 	for _, x in ipairs({-6.4, 6.4}) do -- gold edging along the carpet
-		deco(P(m, "CarpetTrim", Vector3.new(0.8, 0.25, 117), L(x, 2.12, -4.5), Color3.fromRGB(255, 200, 70), Enum.Material.Metal))
+		deco(P(m, "CarpetTrim", Vector3.new(0.8, 0.25, 128), L(x, 2.12, -10), Color3.fromRGB(255, 200, 70), Enum.Material.Metal))
 	end
 	-- low stone wall with a lighter cap; a gap at the front for the entrance arch
 	local function wall(name, size, cf)
@@ -186,10 +187,15 @@ local function plotShell(parent, i)
 		kit("StonePillar", m, L(xz[1], 0, xz[2]), 7)
 	end
 	-- entrance arch at the front of the carpet, with the owner's name on it
-	local arch = kit("PlotArch", m, L(0, 2, -63), 15)
-	local archTop = 15
+	-- a stone landing carries the arch's front feet and a ramp walks up to it, so nothing hangs off the platform
+	studs(P(m, "EntryLanding", Vector3.new(20, 2, 12), L(0, 1, -68), STONE_LIGHT, Enum.Material.Slate), 4)
+	local rampLow, rampHigh = L(0, 0, -84).Position, L(0, 2, -74).Position
+	local rampLen = (rampHigh - rampLow).Magnitude
+	studs(P(m, "EntryRamp", Vector3.new(16, 1, rampLen), CFrame.lookAt(rampLow, rampHigh) * CFrame.new(0, -0.5, -rampLen / 2), STONE_LIGHT, Enum.Material.Slate), 4)
+	local arch = kit("PlotArch", m, L(0, 2, -63), 15.3) -- 18 wide: exactly the gap in the front wall
+	local archTop = 15.3
 	if arch then local acf, asz = arch:GetBoundingBox() archTop = acf.Position.Y + asz.Y / 2 - frame.Position.Y end
-	local sign = P(m, "OwnerSign", Vector3.new(14, 2.6, 0.5), L(0, archTop + 1.6, -64.6), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
+	local sign = P(m, "OwnerSign", Vector3.new(14, 2.6, 0.5), L(0, archTop + 1.3, -63), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
 	deco(sign)
 	label(sign, Enum.NormalId.Front, "Free plot", Color3.fromRGB(120, 255, 140))
 	-- lamps along the carpet, planters between the bedroom rows
@@ -263,15 +269,16 @@ function MapBuilder.hub()
 	for k = 1, MapBuilder.PLOT_COUNT do
 		local a = plotAngle(k)
 		for _, off in ipairs({-9, 9}) do lamp(f, ringCF(R + 4, a, 0.4) * CFrame.new(off, 0, 0), 10) end
-		if k ~= 1 and k ~= 5 then kit("Bench", f, ringCF(R - 7, a + 15, 0.6), 3.2) end
-		kit("Pumpkins", f, ringCF(R - 3, a + 12, 0.6), 2.6)
+		-- each gap between paths is laid out the same, mirrored about its centre; two gaps hold the shop and cauldron instead
+		if k ~= 1 and k ~= 5 then kit("Bench", f, ringCF(R - 7, a + 22.5, 0.6), 3.2) end
+		for _, off in ipairs({-7, 7}) do kit("Pumpkins", f, ringCF(R - 5, a + 22.5 + off, 0.6), 2.6) end
 	end
 	for k = 1, 8 do kit("Pumpkins", f, ringCF(14, k * 45 + 22.5, 1.5), 2.4) end
 	kit("Cauldron", f, ringCF(R - 12, 202.5, 0.6), 5)
 	-- planters ring the dais, and pine trees frame the plaza between the paths
 	for k = 1, MapBuilder.PLOT_COUNT do
 		kit("Planter", f, ringCF(20, plotAngle(k) + 22.5, 0.6), 3)
-		kit("PineTree", f, ringCF(R - 4, plotAngle(k) + 30, 0.6), 18)
+		kit("PineTree", f, ringCF(R - 1, plotAngle(k) + 22.5, 0.6), 18)
 	end
 	-- floating ghost lights over the plaza
 	for k = 1, 6 do
@@ -303,12 +310,14 @@ function MapBuilder.paths()
 		local path = P(f, "Path", Vector3.new(16, 0.3, outer - inner + 2), cf, DIRT, Enum.Material.Ground)
 		studs(path, 4)
 		for _, r in ipairs({inner + 14, inner + 38, outer - 6}) do
-			for _, off in ipairs({-10, 10}) do lamp(f, ringCF(r, a, 0) * CFrame.new(off, 0, 0), 9) end
+			for _, off in ipairs({-12, 12}) do lamp(f, ringCF(r, a, 0) * CFrame.new(off, 0, 0), 9) end
 		end
-		-- a few crooked fence sections along the path edges
-		for _, r in ipairs({inner + 26, inner + 50}) do
-			for _, off in ipairs({-9.5, 9.5}) do
-				kit("Fence", f, ringCF(r, a, 0) * CFrame.new(off, 0, 0) * CFrame.Angles(0, math.rad(90), 0), 3)
+		-- unbroken fence runs along the path edges, between the lamps (a height-3 fence section is 4 long)
+		for _, r0 in ipairs({inner + 18, inner + 42}) do
+			for k = 0, 4 do
+				for _, off in ipairs({-10.5, 10.5}) do
+					kit("Fence", f, ringCF(r0 + k * 4, a, 0) * CFrame.new(off, 0, 0) * CFrame.Angles(0, math.rad(90), 0), 3)
+				end
 			end
 		end
 	end
@@ -326,12 +335,20 @@ function MapBuilder.scenery()
 	-- between neighbouring plots: alternate a little graveyard, a pumpkin patch and a mushroom grove
 	for k, a in ipairs(gapAngles) do
 		local kind = k % 3
+		if k % 2 == 1 then
+			-- dirt road through this gap, out to the terrain and the ring road
+			local inner, outer = MapBuilder.PLAZA_RADIUS + MapBuilder.RING_PATH - 1, 285
+			studs(P(f, "GapPath", Vector3.new(14, 0.3, outer - inner), ringCF((inner + outer) / 2, a, 0.15), DIRT, Enum.Material.Ground), 4)
+			for _, r in ipairs({100, 150, 200, 250}) do
+				for _, off in ipairs({-10, 10}) do lamp(f, ringCF(r, a) * CFrame.new(off, 0, 0), 9) end
+			end
+		else
 		local base = ringCF(232, a)
 		if kind == 0 then
 			for g = 1, 4 do kit("Graves", f, base * CFrame.new(rng:NextNumber(-12, 12), 0, rng:NextNumber(-14, 14)) * CFrame.Angles(0, rng:NextNumber(-0.4, 0.4), 0), 3.6) end
 			kit("SpookyTree", f, base * CFrame.new(0, 0, 18), 18)
 			for s = -1, 1, 2 do
-				for j = -2, 2 do kit("Fence", f, base * CFrame.new(s * 18, 0, j * 7.6) * CFrame.Angles(0, math.rad(90), 0), 3) end
+				for j = -4, 4 do kit("Fence", f, base * CFrame.new(s * 18, 0, j * 4) * CFrame.Angles(0, math.rad(90), 0), 3) end
 			end
 		elseif kind == 1 then
 			for g = 1, 7 do kit("Pumpkins", f, base * CFrame.new(rng:NextNumber(-16, 16), 0, rng:NextNumber(-18, 18)) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0), rng:NextNumber(2.4, 3.6)) end
@@ -343,61 +360,361 @@ function MapBuilder.scenery()
 		end
 		-- a lamp at the inner end of each gap, so walking round the plaza ring stays lit
 		lamp(f, ringCF(150, a), 9)
-	end
-
-	-- the forest band beyond the plots
-	local trees = {"PineTree", "PineTree", "PineTree", "SpookyTree", "SpookyTree", "LeafyTree"}
-	local n = 0
-	for ring = 1, 4 do
-		local r0 = MapBuilder.TREE_RING[1] + (ring - 1) * 34
-		local count = 34 + ring * 6
-		for j = 1, count do
-			local a = (j + rng:NextNumber(-0.35, 0.35)) * 360 / count + ring * 7
-			local r = r0 + rng:NextNumber(-10, 10)
-			local name = trees[rng:NextInteger(1, #trees)]
-			local h = (name == "PineTree" and 26 or name == "SpookyTree" and 20 or 18) * rng:NextNumber(0.85, 1.4)
-			kit(name, f, ringCF(r, a) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0), h)
-			n += 1
 		end
 	end
-	for j = 1, 24 do
-		local a = rng:NextNumber(0, 360)
-		local r = rng:NextNumber(285, 420)
-		kit(j % 2 == 0 and "Rocks" or "Mushrooms", f, ringCF(r, a) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0), j % 2 == 0 and rng:NextNumber(3, 6) or rng:NextNumber(2.5, 4))
-	end
 
-	-- rolling hills and the haunted mansion on the skyline (behind a gap so it shows from the hub)
-	for j = 1, 14 do
-		local a = j * 360 / 14 + rng:NextNumber(-8, 8)
-		local r = rng:NextNumber(470, 540)
-		local w = rng:NextNumber(120, 190)
-		local hill = P(f, "Hill", Vector3.new(w, rng:NextNumber(80, 130), w * rng:NextNumber(0.7, 1.1)), ringCF(r, a, 0), Color3.fromRGB(45, 130, 55), Enum.Material.Grass)
-		local mesh = Instance.new("SpecialMesh") mesh.MeshType = Enum.MeshType.Sphere mesh.Parent = hill
-		deco(hill)
-	end
-	local mansionA = gapAngles[3]
-	local hill = P(f, "MansionHill", Vector3.new(120, 36, 110), ringCF(470, mansionA, 2), Color3.fromRGB(50, 120, 55), Enum.Material.Grass)
-	local mm = Instance.new("SpecialMesh") mm.MeshType = Enum.MeshType.Sphere mm.Parent = hill
-	deco(hill)
-	kit("Mansion", f, ringCF(470, mansionA, 14) * CFrame.Angles(0, 0, 0), 60)
-	lampLight(f, (ringCF(470, mansionA, 40)).Position, 60)
+	return "scenery: " .. #f:GetChildren() .. " items"
+end
 
-	-- a few ghost lights drifting over the forest
-	for j = 1, 10 do
-		local a = math.rad(j * 36 + 10)
-		local r = rng:NextNumber(280, 360)
-		local g = P(f, "GhostLight", Vector3.new(1.4, 1.4, 1.4), CFrame.new(math.sin(a) * r, rng:NextNumber(14, 26), math.cos(a) * r), Color3.fromRGB(150, 255, 220), Enum.Material.Neon, {Shape = Enum.PartType.Ball, Transparency = 0.4, CanCollide = false})
+--------------------------------------------------------------------------- terrain and the wider world
+
+-- Everything beyond the plots: real terrain (r > TERRAIN_START) with trails from the hub's four main gaps out to
+-- a lake, the mansion hill, a farm and a witch's hollow, four smaller clearings, a forest, and a mountain ring.
+local TERRAIN_START = 276
+local RING_ROAD = 296
+local WATER_Y = -4
+local BOUNDARY = 860
+local LAKE_R, ISLAND_R = 95, 22
+
+local function polar(r, g) return Vector3.new(math.sin(math.rad(g)) * r, 0, math.cos(math.rad(g)) * r) end
+local function smooth(a, b, x) local t = math.clamp((x - a) / (b - a), 0, 1) return t * t * (3 - 2 * t) end
+local function lerp(a, b, t) return a + (b - a) * t end
+
+local ZONES = {
+	lake = {c = polar(600, 22.5)},
+	mansion = {c = polar(650, 112.5), r = 60, y = 48},
+	farm = {c = polar(570, 202.5), r = 90, y = 3},
+	hollow = {c = polar(580, 292.5), r = 80, y = -4},
+	well = {c = polar(420, 67.5), r = 32, y = 1},
+	graveyard = {c = polar(430, 157.5), r = 38, y = 1},
+	rocks = {c = polar(420, 247.5), r = 32, y = 1},
+	picnic = {c = polar(420, 337.5), r = 32, y = 1},
+}
+local function trail(y0, y1, ...)
+	local pts, spec = {}, {...}
+	for k, s in ipairs(spec) do
+		local p = polar(s[1], s[2])
+		table.insert(pts, Vector3.new(p.X, lerp(y0, y1, (k - 1) / (#spec - 1)), p.Z))
+	end
+	return pts
+end
+local TRAILS = {
+	trail(0.5, 1, {276, 22.5}, {340, 22.5}, {440, 25}, {505, 22.5}, {544, 22.5}),
+	trail(0.5, 48, {276, 112.5}, {340, 117}, {420, 108}, {500, 116}, {590, 112.5}),
+	trail(0.5, 3, {276, 202.5}, {350, 198}, {420, 206}, {480, 202.5}),
+	trail(0.5, -4, {276, 292.5}, {350, 297}, {430, 288}, {500, 292.5}),
+	trail(0.5, 1, {296, 67.5}, {390, 67.5}),
+	trail(0.5, 1, {296, 157.5}, {392, 157.5}),
+	trail(0.5, 1, {296, 247.5}, {390, 247.5}),
+	trail(0.5, 1, {296, 337.5}, {390, 337.5}),
+}
+
+-- nearest point on any trail: distance and the trail's height there
+local function nearTrail(x, z)
+	local best, y = math.huge, 0
+	for _, pts in ipairs(TRAILS) do
+		for k = 1, #pts - 1 do
+			local a, b = pts[k], pts[k + 1]
+			local dx, dz = b.X - a.X, b.Z - a.Z
+			local t = math.clamp(((x - a.X) * dx + (z - a.Z) * dz) / (dx * dx + dz * dz), 0, 1)
+			local ex, ez = x - (a.X + dx * t), z - (a.Z + dz * t)
+			local d = ex * ex + ez * ez
+			if d < best then best, y = d, lerp(a.Y, b.Y, t) end
+		end
+	end
+	return math.sqrt(best), y
+end
+
+-- ground height and whether this column is a dirt road
+local function ground(x, z)
+	local r = math.sqrt(x * x + z * z)
+	if r < TERRAIN_START then return -100, false end
+	local n = math.noise(x / 180, z / 180, 7) + math.noise(x / 70, z / 70, 3) * 0.35
+	local y = 0.5 + math.max(n + 0.25, -0.15) * 26 * smooth(330, 560, r) -- floor: no stray ponds in the dips
+	y += smooth(760, 980, r) * (110 + math.noise(x / 120, z / 120, 9) * 70)
+	for _, zone in pairs(ZONES) do
+		if zone.r then
+			local d = math.sqrt((x - zone.c.X) ^ 2 + (z - zone.c.Z) ^ 2)
+			y = lerp(zone.y, y, smooth(zone.r, zone.r + 45, d))
+		end
+	end
+	local lake = ZONES.lake.c
+	local dl = math.sqrt((x - lake.X) ^ 2 + (z - lake.Z) ^ 2)
+	y = lerp(-14, y, smooth(LAKE_R * 0.7, LAKE_R * 1.1, dl))
+	y = lerp(1.5, y, smooth(ISLAND_R, ISLAND_R + 14, dl))
+	local dt, ty = nearTrail(x, z)
+	y = lerp(ty, y, smooth(8, 24, dt))
+	local dr = math.abs(r - RING_ROAD)
+	y = lerp(0.5, y, smooth(8, 22, dr))
+	return y, dt < 7 or dr < 7
+end
+MapBuilder.ground = ground
+
+-- writes in small chunks with a yield between them; run from task.spawn and poll the state table
+function MapBuilder.terrain(state)
+	state = state or {}
+	local T = workspace.Terrain
+	T:Clear()
+	T:SetMaterialColor(Enum.Material.LeafyGrass, GRASS)
+	T:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(135, 120, 85)) -- this material reads red if given DIRT
+	T:SetMaterialColor(Enum.Material.Rock, STONE)
+	T.WaterColor = Color3.fromRGB(40, 130, 140) T.WaterTransparency = 0.5 T.WaterReflectance = 0.6 T.WaterWaveSize = 0.05 T.WaterWaveSpeed = 6
+	-- the baseplate only carries the plots; beyond it the terrain (and the lake bed) takes over
+	workspace.Baseplate.Size = Vector3.new(620, 16, 620)
+	local RES, EDGE, CHUNK, Y0, Y1 = 4, 1040, 260, -16, 224
+	local ny = (Y1 - Y0) / RES
+	-- LeafyGrass: plain Grass grows realistic blades that clash with the cartoon style
+	local air, grass, dirt, rock, water = Enum.Material.Air, Enum.Material.LeafyGrass, Enum.Material.Ground, Enum.Material.Rock, Enum.Material.Water
+	local done = 0
+	for cx = -EDGE, EDGE - CHUNK, CHUNK do
+		for cz = -EDGE, EDGE - CHUNK, CHUNK do
+			local nh = CHUNK / RES
+			local mats, occs, any = table.create(nh), table.create(nh), false
+			for i = 1, nh do
+				local mi, oi = table.create(ny), table.create(ny)
+				for j = 1, ny do mi[j] = table.create(nh, air) oi[j] = table.create(nh, 0) end
+				mats[i], occs[i] = mi, oi
+				local x = cx + (i - 0.5) * RES
+				for k = 1, nh do
+					local z = cz + (k - 0.5) * RES
+					local h, road = ground(x, z)
+					if h > -100 then
+						any = true
+						local surface = road and dirt or (h > 75 and rock or grass)
+						for j = 1, ny do
+							local bottom = Y0 + (j - 1) * RES
+							local occ = math.clamp((h - 2 - bottom) / RES, 0, 1) -- smooth terrain renders half a voxel above its occupancy
+							if occ > 0 then
+								mi[j][k] = bottom + RES < h - 6 and rock or surface
+								oi[j][k] = occ
+							elseif bottom < WATER_Y then
+								mi[j][k] = water
+								oi[j][k] = 1
+							end
+							if bottom > h and bottom >= WATER_Y then break end
+						end
+					end
+				end
+			end
+			if any then
+				T:WriteVoxels(Region3.new(Vector3.new(cx, Y0, cz), Vector3.new(cx + CHUNK, Y1, cz + CHUNK)), RES, mats, occs)
+			end
+			done += 1
+			state.done = done
+			task.wait()
+		end
+	end
+	state.finished = true
+	return state
+end
+
+function MapBuilder.world()
+	local f = folder("World")
+	local rng = Random.new(MapBuilder.SEED + 1)
+
+	-- stand a kit on the ground; look = the point its front should face (the hub by default)
+	local function put(name, pos, height, look)
+		local y = ground(pos.X, pos.Z)
+		local p = Vector3.new(pos.X, y - 0.2, pos.Z)
+		local target = look and Vector3.new(look.X, p.Y, look.Z) or Vector3.new(0, p.Y, 0)
+		return kit(name, f, CFrame.lookAt(p, target), height)
+	end
+	local function ghost(pos, y)
+		local g = P(f, "GhostLight", Vector3.new(1.4, 1.4, 1.4), CFrame.new(pos.X, ground(pos.X, pos.Z) + y, pos.Z), Color3.fromRGB(150, 255, 220), Enum.Material.Neon, {Shape = Enum.PartType.Ball, Transparency = 0.4, CanCollide = false})
 		deco(g)
-		local l = Instance.new("PointLight") l.Color = Color3.fromRGB(160, 255, 255) l.Range = 20 l.Brightness = 0.8 l.Shadows = false l.Parent = g
+		local l = Instance.new("PointLight") l.Color = Color3.fromRGB(160, 255, 255) l.Range = 22 l.Brightness = 1 l.Shadows = false l.Parent = g
 	end
-	return "scenery: " .. n .. " trees, " .. #f:GetChildren() .. " items"
+	local function fenceRun(a, b, height)
+		local _, s = ServerStorage.MapKit.Fence:GetBoundingBox()
+		local len = s.Z * height / s.Y
+		local count = math.max(1, math.floor((b - a).Magnitude / len))
+		local dir = (b - a).Unit
+		for k = 0, count - 1 do
+			local p = a + dir * ((k + 0.5) * (b - a).Magnitude / count)
+			local base = Vector3.new(p.X, ground(p.X, p.Z) - 0.2, p.Z)
+			-- a fence's length runs along its cf X
+			kit("Fence", f, CFrame.lookAt(base, base + Vector3.new(dir.Z, 0, -dir.X)), height)
+		end
+	end
+	local function around(zone, radius, a) return zone.c + polar(radius, a) end
+
+	-- lamps down every trail, alternating sides, and round the ring road
+	for _, pts in ipairs(TRAILS) do
+		local side, carry = 11, 20
+		for k = 1, #pts - 1 do
+			local a, b = Vector3.new(pts[k].X, 0, pts[k].Z), Vector3.new(pts[k + 1].X, 0, pts[k + 1].Z)
+			local dir, len = (b - a).Unit, (b - a).Magnitude
+			local d = carry
+			while d < len do
+				local p = a + dir * d + Vector3.new(dir.Z, 0, -dir.X) * side
+				lamp(f, CFrame.new(p.X, ground(p.X, p.Z) - 0.2, p.Z), 10)
+				side = -side
+				d += 48
+			end
+			carry = d - len
+		end
+	end
+	for k = 1, 16 do
+		local g = 11.25 + (k - 1) * 22.5
+		put("Rocks", polar(RING_ROAD + 12, g), 3)
+		local p = polar(RING_ROAD + 10, g + 11.25)
+		lamp(f, CFrame.new(p.X, ground(p.X, p.Z) - 0.2, p.Z), 10)
+	end
+
+	-- the lake: an island gazebo reached by a bridge, docks, and rocks on the shore
+	local lake = ZONES.lake
+	put("Gazebo", lake.c, 18)
+	local g0 = 22.5
+	local bridgePos = polar(561, g0)
+	local outward = polar(1, g0)
+	local bridgeBase = Vector3.new(bridgePos.X, WATER_Y - 1, bridgePos.Z)
+	local bridge = kit("Bridge", f, CFrame.lookAt(bridgeBase, bridgeBase + Vector3.new(outward.Z, 0, -outward.X)), 18)
+	if bridge then
+		for _, d in ipairs(bridge:GetDescendants()) do if d:IsA("BasePart") then d.CanCollide = false end end
+		-- walk on two invisible ramps instead of the mesh's bumpy collision
+		local top = Vector3.new(bridgePos.X, WATER_Y - 1 + 18 * 0.56, bridgePos.Z)
+		local nearEnd = polar(544, g0) + Vector3.new(0, 1, 0)
+		local farEnd = polar(578, g0) + Vector3.new(0, 1.5, 0)
+		for _, seg in ipairs({{nearEnd, top}, {top, farEnd}}) do
+			local len = (seg[2] - seg[1]).Magnitude
+			P(f, "BridgeWalk", Vector3.new(9, 1, len), CFrame.lookAt(seg[1], seg[2]) * CFrame.new(0, -0.5, -len / 2), DIRT, nil, {Transparency = 1})
+		end
+	end
+	for _, a in ipairs({100, 260}) do
+		local edge = around(lake, LAKE_R * 0.92, a)
+		local base = Vector3.new(edge.X, WATER_Y + 0.5, edge.Z)
+		-- a dock's length runs along its cf X: point that at the lake's middle
+		local inward = (lake.c - edge).Unit
+		kit("Dock", f, CFrame.lookAt(base, base + Vector3.new(inward.Z, 0, -inward.X)), 7)
+	end
+	for k = 1, 22 do
+		local a = k * 360 / 22 + rng:NextNumber(-5, 5)
+		if math.abs(((a - 202.5 + 180) % 360) - 180) > 18 then -- leave the trail's end clear
+			put(k % 3 == 0 and "LeafyTree" or "Rocks", around(lake, LAKE_R * 1.2 + rng:NextNumber(0, 16), a), k % 3 == 0 and 18 or rng:NextNumber(4, 8))
+		end
+	end
+	for k = 1, 8 do ghost(around(lake, 45, k * 45), 10) end
+
+	-- the mansion hill: an arch at the top of the trail, a matching fence line, graves and dead trees
+	local mansion = ZONES.mansion
+	local gateP = mansion.c - mansion.c.Unit * 52
+	put("Mansion", mansion.c + mansion.c.Unit * 12, 60)
+	put("PlotArch", gateP, 18)
+	local tangent = Vector3.new(gateP.Unit.Z, 0, -gateP.Unit.X)
+	for _, s in ipairs({-1, 1}) do
+		put("StonePillar", gateP + tangent * s * 12, 8)
+		fenceRun(gateP + tangent * s * 13, gateP + tangent * s * 48, 5)
+		put("StonePillar", gateP + tangent * s * 49, 8)
+		for row = 1, 3 do
+			for col = 1, 3 do
+				put("Graves", gateP + tangent * s * (10 + col * 10) + gateP.Unit * (8 + row * 10), 4)
+			end
+		end
+		put("SpookyTree", gateP + tangent * s * 44 + gateP.Unit * 40, 26)
+	end
+	for k = 1, 8 do ghost(around(mansion, 54, k * 45 + 10), 16) end
+
+	-- the farm: a barn and windmill at the back, two fenced pumpkin fields in straight rows
+	local farm = ZONES.farm
+	local toHub = -farm.c.Unit
+	local across = Vector3.new(toHub.Z, 0, -toHub.X)
+	put("Barn", farm.c - toHub * 40 - across * 24, 30)
+	put("Windmill", farm.c - toHub * 42 + across * 34, 44)
+	put("Wagon", farm.c - toHub * 12 - across * 2, 8)
+	for _, s in ipairs({-1, 1}) do
+		local field = farm.c + toHub * 28 + across * s * 38
+		for row = -2, 2 do
+			for col = -2, 2 do put("Pumpkins", field + toHub * (row * 8) + across * (col * 8), 3) end
+		end
+		put("Scarecrow", field, 9)
+		local a, b, c, d = field + toHub * 22 - across * 22, field + toHub * 22 + across * 22, field - toHub * 22 + across * 22, field - toHub * 22 - across * 22
+		fenceRun(a, b, 4) fenceRun(b, c, 4) fenceRun(c, d, 4) fenceRun(d, a, 4)
+		for k = 0, 2 do put("HayBales", farm.c - toHub * 18 + across * s * (18 + k * 9), 6) end
+	end
+
+	-- the witch's hollow: a hut and cauldron in a dip, ringed by giant glowing mushrooms
+	local hollow = ZONES.hollow
+	local hTo = -hollow.c.Unit
+	put("WitchHut", hollow.c - hTo * 14, 32)
+	put("Cauldron", hollow.c + hTo * 10, 7)
+	for k = 1, 12 do
+		local a = k * 30
+		local pos = around(hollow, 52, a)
+		if (pos - hollow.c).Unit:Dot(hTo) < 0.9 then -- leave the trail's way in clear
+			local m = put("GiantMushroom", pos, 16 + (k % 3) * 6, hollow.c)
+			if m then
+				local l = Instance.new("PointLight") l.Color = Color3.fromRGB(190, 110, 255) l.Range = 34 l.Brightness = 1.2 l.Shadows = false l.Parent = m:FindFirstChildWhichIsA("MeshPart", true)
+			end
+		end
+		put("Mushrooms", around(hollow, 30, a + 15), 4, hollow.c)
+	end
+	for k = 1, 8 do ghost(around(hollow, 28, k * 45), 12) end
+
+	-- smaller clearings on the other four trails
+	local well = ZONES.well
+	put("Well", well.c, 12)
+	for k = 1, 4 do put("Bench", around(well, 18, k * 90 + 45), 3.2, well.c) end
+	local yard = ZONES.graveyard
+	local yTo = -yard.c.Unit
+	local yAcross = Vector3.new(yTo.Z, 0, -yTo.X)
+	put("IronGate", yard.c + yTo * 30, 12)
+	local _, gs = ServerStorage.MapKit.IronGate:GetBoundingBox()
+	local gateHalf = gs.Z * 12 / gs.Y / 2 -- fence meets the gate's posts whatever its proportions
+	local c1, c2, c3, c4 = yard.c + yTo * 30 - yAcross * 30, yard.c + yTo * 30 + yAcross * 30, yard.c - yTo * 30 + yAcross * 30, yard.c - yTo * 30 - yAcross * 30
+	fenceRun(yard.c + yTo * 30 + yAcross * gateHalf, c2, 5) fenceRun(c2, c3, 5) fenceRun(c3, c4, 5) fenceRun(c4, c1, 5) fenceRun(c1, yard.c + yTo * 30 - yAcross * gateHalf, 5)
+	put("Crypt", yard.c - yTo * 18, 20)
+	for row = 0, 1 do
+		for col = -2, 2 do
+			if col ~= 0 then put("Graves", yard.c + yTo * (6 + row * 12) + yAcross * (col * 9), 4) end
+		end
+	end
+	local rocks = ZONES.rocks
+	for k = 1, 9 do put("Rocks", around(rocks, 22, k * 40), 7 + (k % 3) * 3) end
+	put("Cauldron", rocks.c, 6)
+	local picnic = ZONES.picnic
+	put("Gazebo", picnic.c, 16)
+	for k = 1, 6 do put("Bench", around(picnic, 20, k * 60 + 30), 3.2, picnic.c) end
+
+	-- the forest fills what is left, up the mountain sides
+	local trees = {"PineTree", "PineTree", "PineTree", "SpookyTree", "SpookyTree", "LeafyTree"}
+	local placed, tries = 0, 0
+	while placed < 520 and tries < 6000 do
+		tries += 1
+		local p = polar(rng:NextNumber(312, 930), rng:NextNumber(0, 360))
+		local clear = (p - lake.c).Magnitude > LAKE_R * 1.15
+		for _, zone in pairs(ZONES) do
+			if zone.r and (p - zone.c).Magnitude < zone.r + 12 then clear = false end
+		end
+		if clear and nearTrail(p.X, p.Z) > 20 and math.abs(p.Magnitude - RING_ROAD) > 16 then
+			local name = trees[rng:NextInteger(1, #trees)]
+			local h = (name == "PineTree" and 26 or name == "SpookyTree" and 20 or 18) * rng:NextNumber(0.85, 1.4)
+			kit(name, f, CFrame.new(p.X, ground(p.X, p.Z) - 0.4, p.Z) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0), h)
+			placed += 1
+			if placed % 80 == 0 then task.wait() end
+		end
+	end
+	for j = 1, 70 do
+		local p = polar(rng:NextNumber(315, 780), rng:NextNumber(0, 360))
+		if nearTrail(p.X, p.Z) > 14 and (p - lake.c).Magnitude > LAKE_R * 1.1 then
+			kit(j % 2 == 0 and "Rocks" or "Mushrooms", f, CFrame.new(p.X, ground(p.X, p.Z) - 0.2, p.Z) * CFrame.Angles(0, rng:NextNumber(0, 6.28), 0), j % 2 == 0 and rng:NextNumber(3, 7) or rng:NextNumber(2.5, 4))
+		end
+	end
+	for j = 1, 16 do ghost(polar(rng:NextNumber(330, 700), j * 22.5 + 10), rng:NextNumber(12, 24)) end
+
+	-- an invisible ring where the mountains begin, so nobody climbs out of the world
+	local wallLen = 2 * BOUNDARY * math.tan(math.rad(3.75)) + 2
+	for k = 1, 48 do
+		local p = polar(BOUNDARY, (k - 0.5) * 7.5) + Vector3.new(0, 250, 0)
+		P(f, "Boundary", Vector3.new(wallLen, 600, 4), CFrame.lookAt(p, Vector3.new(0, 250, 0)), STONE, nil, {Transparency = 1, CanTouch = false, CanQuery = false})
+	end
+	return "world: " .. placed .. " trees, " .. #f:GetChildren() .. " items"
 end
 
 --------------------------------------------------------------------------- budget report (vault: audit after every art pass)
 
 function MapBuilder.audit()
 	local out = {}
-	for _, n in ipairs({"Hub", "Plots", "Paths", "Scenery"}) do
+	for _, n in ipairs({"Hub", "Plots", "Paths", "Scenery", "World"}) do
 		local f = workspace:FindFirstChild(n)
 		if f then
 			local parts, meshes, tris = 0, 0, 0
