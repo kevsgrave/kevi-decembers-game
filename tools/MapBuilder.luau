@@ -71,7 +71,7 @@ local function disc(parent, name, radius, thick, centre, color, mat)
 end
 
 -- clone a generated kit model, scale it to a target height and stand it at cf (its pivot is the base centre)
--- the generated kit models face their local +X; turn them so cf's -Z (the CFrame.lookAt direction) is their front
+-- normalizeKit() makes every kit model face its local +X; turn them so cf's -Z (the CFrame.lookAt direction) is their front
 local KIT_FRONT = CFrame.Angles(0, math.rad(90), 0)
 
 local function kit(name, parent, cf, height)
@@ -85,6 +85,17 @@ local function kit(name, parent, cf, height)
 	m:PivotTo(cf * KIT_FRONT)
 	m.Parent = parent
 	return m
+end
+
+-- generate_mesh spawns each mesh at the Studio camera's yaw, so kit models arrive skewed by an arbitrary angle.
+-- Square every one up: mesh front (its local +Z) toward the model's +X, pivot at the base centre. Run after adding kit models.
+function MapBuilder.normalizeKit()
+	for _, m in ipairs(ServerStorage.MapKit:GetChildren()) do
+		local mesh = m:FindFirstChildWhichIsA("BasePart", true)
+		mesh.CFrame = CFrame.new(mesh.Position) * CFrame.Angles(0, math.rad(90), 0)
+		m.WorldPivot = CFrame.new(mesh.Position - Vector3.new(0, mesh.Size.Y / 2, 0))
+	end
+	return "kit squared up: " .. #ServerStorage.MapKit:GetChildren()
 end
 
 local function lampLight(parent, pos, range)
@@ -192,8 +203,8 @@ local function plotShell(parent, i)
 	local rampLow, rampHigh = L(0, 0, -84).Position, L(0, 2, -74).Position
 	local rampLen = (rampHigh - rampLow).Magnitude
 	studs(P(m, "EntryRamp", Vector3.new(16, 1, rampLen), CFrame.lookAt(rampLow, rampHigh) * CFrame.new(0, -0.5, -rampLen / 2), STONE_LIGHT, Enum.Material.Slate), 4)
-	local arch = kit("PlotArch", m, L(0, 2, -63), 15.3) -- 18 wide: exactly the gap in the front wall
-	local archTop = 15.3
+	local arch = kit("PlotArch", m, L(0, 2, -63), 15.9) -- 18 wide: exactly the gap in the front wall
+	local archTop = 15.9
 	if arch then local acf, asz = arch:GetBoundingBox() archTop = acf.Position.Y + asz.Y / 2 - frame.Position.Y end
 	local sign = P(m, "OwnerSign", Vector3.new(14, 2.6, 0.5), L(0, archTop + 1.3, -63), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
 	deco(sign)
@@ -714,6 +725,12 @@ end
 
 function MapBuilder.audit()
 	local out = {}
+	local skewed = 0
+	for _, m in ipairs(ServerStorage.MapKit:GetChildren()) do
+		local _, yaw = m:FindFirstChildWhichIsA("BasePart", true).CFrame:ToOrientation()
+		if math.abs(math.deg(yaw) - 90) > 0.01 then skewed += 1 end
+	end
+	table.insert(out, "skewed kit models: " .. skewed)
 	for _, n in ipairs({"Hub", "Plots", "Paths", "Scenery", "World"}) do
 		local f = workspace:FindFirstChild(n)
 		if f then
