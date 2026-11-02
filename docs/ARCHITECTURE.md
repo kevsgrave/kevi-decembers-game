@@ -1,4 +1,4 @@
-# Scare Sim architecture
+# SCARE THEM architecture
 
 The place **SCARE THEM** is the working copy. `src/` holds its scripts as source. The design spec is in `docs/spec/`, and `docs/spec/OVERRIDES.md` lists the owner's decisions that override it.
 
@@ -51,7 +51,7 @@ Every request from a client, whether a remote or a ProximityPrompt, checks in th
 2. **Arguments:** `Remotes.checkArgs(name, ...)`: exact count, right types, finite numbers, bounded strings and lists. Prompts have no arguments, so they skip this.
 3. **Save loaded:** `PlayerData.Get(player)`. No profile means no action.
 4. **Ownership:** the target belongs to this player's plot or inventory.
-5. **Distance:** the server measures character to target itself, because prompt range is client-side.
+5. **Distance:** the server measures character to target itself, because prompt range is client-side. Hatching, shop buying and fusing skip this, because the HUD opens those panels from anywhere.
 6. **State:** room unlocked, monster not already placed, cooldown over, one-time reward unclaimed.
 7. **Price:** read from config on the server, never from the client.
 8. **Commit with no yield** between the checks and the change, so a double request can't spend once and receive twice.
@@ -144,7 +144,11 @@ Plots are **auto-assigned, by the owner's decision (overrides the master prompt'
 
 `PlotLayout` maps bedroom numbers to floors: 1-6 is floor 1, 7-12 is floor 2, and odd bays are on the left. Saves key placements by bedroom number, so a slot stays stable on any plot. A floor is meant to be a copy of `PlotTemplate.Bedrooms` lifted by `PlotLayout.floorHeight(floor)`, renumbered with `bedroomIndex`. Rooms are capped by `Config.MAX_BEDROOMS`.
 
-`MapBuilder.stations()` adds the rebirth station, fusing sign and ghosts without rebuilding the hub or plots. Re-running it replaces only what it made.
+`MapBuilder` builds everything from parts, in this order: `lighting`, `ground` (checker tiles and teal water), `plots`, `hub`, `stations` (shop, forge, rebirth hall, book, ghosts; needs the hub), `paths`, `scenery`, `islands`, `digNodes` (removes any tree standing on a spot, so it runs after the trees), `exteriors`, `audit`. Re-running a step replaces only what it made.
+
+## Screens
+
+`Shared/Style.luau` holds the look from `docs/references/style/`: colours, chunky buttons, studded panels and cards. `Shared/Panels.luau` keeps one panel open at a time; each panel script registers itself under a name (Shop, Index, Inventory, Rebirth, Settings, Eggs, Forge) and the HUD buttons call `Panels.toggle`.
 
 ## Saved data, schema version 3
 

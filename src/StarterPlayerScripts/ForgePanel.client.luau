@@ -7,48 +7,25 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local Panels = require(Shared:WaitForChild("Panels"))
+local Style = require(Shared:WaitForChild("Style"))
 
 local player = Players.LocalPlayer
 local getRemote = Net.Function("GetInventory")
 local changedRemote = Net.Event("InventoryChanged")
 local fuseRemote = Net.Function("FuseMonsters")
 
-local PANEL = Color3.fromRGB(60, 40, 110)
-local ROW = Color3.fromRGB(85, 60, 145)
-local LIME = Color3.fromRGB(60, 200, 90)
-local SILVER = Color3.fromRGB(150, 150, 165)
-local GOLD = Color3.fromRGB(255, 200, 40)
+local LIME, GOLD = Style.GREEN, Style.GOLD
+local label, button = Style.label, Style.button
 
 local gui = Instance.new("ScreenGui") gui.Name = "ForgePanel" gui.ResetOnSpawn = false gui.DisplayOrder = 2
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function corner(obj, r) Instance.new("UICorner", obj).CornerRadius = UDim.new(0, r) end
-local function label(name, parent, text, color)
-	local t = Instance.new("TextLabel") t.Name = name t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne t.TextScaled = true
-	t.TextColor3 = color or Color3.new(1, 1, 1) t.Text = text t.TextXAlignment = Enum.TextXAlignment.Left t.TextWrapped = true t.Parent = parent
-	return t
-end
-local function button(name, parent, text, color)
-	local b = Instance.new("TextButton") b.Name = name b.BackgroundColor3 = color b.Font = Enum.Font.FredokaOne b.TextScaled = true
-	b.TextColor3 = Color3.new(1, 1, 1) b.Text = text b.Parent = parent
-	corner(b, 10)
-	return b
-end
-
-local panel = Instance.new("Frame") panel.Name = "Panel" panel.Visible = false panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.55) panel.Size = UDim2.fromScale(0.92, 0.76) panel.BackgroundColor3 = PANEL panel.Parent = gui
-corner(panel, 18)
-local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(640, 540) cap.Parent = panel
-local title = label("Title", panel, "Fusing Cauldron", Color3.new(1, 1, 1))
-title.Position = UDim2.fromOffset(16, 10) title.Size = UDim2.new(1, -90, 0, 34)
-local closeButton = button("Close", panel, "X", SILVER)
-closeButton.AnchorPoint = Vector2.new(1, 0) closeButton.Position = UDim2.new(1, -10, 0, 8) closeButton.Size = UDim2.fromOffset(44, 44)
+local panel, _, closeButton = Style.panel(gui, "Panel", "🔥 Fusion Forge", Style.PURPLE)
 local message = label("Message", panel, "Fuse matching monsters into a bigger one. Placed and favorited monsters are never used.", Color3.fromRGB(235, 235, 245))
-message.Position = UDim2.fromOffset(16, 50) message.Size = UDim2.new(1, -32, 0, 40)
-local list = Instance.new("ScrollingFrame") list.Name = "List" list.Position = UDim2.fromOffset(12, 96) list.Size = UDim2.new(1, -24, 1, -108)
-list.BackgroundTransparency = 1 list.BorderSizePixel = 0 list.ScrollBarThickness = 8 list.CanvasSize = UDim2.new() list.AutomaticCanvasSize = Enum.AutomaticSize.Y list.Parent = panel
-local layout = Instance.new("UIListLayout") layout.Padding = UDim.new(0, 6) layout.SortOrder = Enum.SortOrder.LayoutOrder layout.Parent = list
+message.Position = UDim2.fromOffset(16, 60) message.Size = UDim2.new(1, -32, 0, 40)
+local list = Style.list(panel, 106)
 
 local sizeMult, recipeFrom = {}, {}
 for _, s in ipairs(Config.Balance.fusion.sizes) do sizeMult[s.id] = s.mult end
@@ -59,7 +36,6 @@ local REASONS = {
 	favorite = "A favorited monster is protected",
 	placed = "Pick up placed monsters first",
 	missing = "Those monsters have changed, have another look",
-	far = "Come back to the cauldron",
 	count = "That's the wrong number of monsters",
 	maxSize = "That's already the biggest size",
 }
@@ -92,9 +68,8 @@ local function render()
 		table.sort(g.rows, function(a, b) return a.baseFear > b.baseFear end) -- uses the strongest, so the new one pays the most
 		position += 1
 		local ready = #g.rows >= recipe.count
-		local f = Instance.new("Frame") f.Name = key f.LayoutOrder = if ready then position else position + 1000 f.Size = UDim2.new(1, -12, 0, 118) f.BackgroundColor3 = ROW f.Parent = list
-		corner(f, 12)
 		local tier = Config.TIER_BY_NAME[g.tier]
+		local f = Style.card(key, list, if ready then position else position + 1000, 118, tier and tier.color)
 		local name = g.size .. " " .. g.kind .. " - " .. g.tier .. (if g.mutation then " (" .. g.mutation .. ")" else "")
 		local top = label("Name", f, name .. ": " .. #g.rows .. " of " .. recipe.count, tier and tier.color)
 		top.Position = UDim2.fromOffset(12, 6) top.Size = UDim2.new(1, -130, 0, 28)
@@ -131,8 +106,7 @@ local function render()
 		end
 	end
 	if position == 0 then
-		local f = Instance.new("Frame") f.Name = "Empty" f.Size = UDim2.new(1, -12, 0, 60) f.BackgroundColor3 = ROW f.Parent = list
-		corner(f, 12)
+		local f = Style.card("Empty", list, 1, 60)
 		local t = label("Text", f, "Nothing to fuse yet. Hatch more eggs!")
 		t.Position = UDim2.fromOffset(12, 12) t.Size = UDim2.new(1, -24, 0, 36)
 	end
@@ -146,12 +120,13 @@ closeButton.Activated:Connect(function()
 	panel.Visible = false
 	confirming = nil
 end)
+Panels.register("Forge", function()
+	local ok, state = pcall(getRemote.InvokeServer, getRemote)
+	if ok and state then current = state end
+	confirming = nil
+	panel.Visible = true
+	render()
+end, panel)
 ProximityPromptService.PromptTriggered:Connect(function(prompt)
-	if prompt.Name == "FusePrompt" then
-		local ok, state = pcall(getRemote.InvokeServer, getRemote)
-		if ok and state then current = state end
-		confirming = nil
-		panel.Visible = true
-		render()
-	end
+	if prompt.Name == "FusePrompt" then Panels.open("Forge") end
 end)

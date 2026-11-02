@@ -1,13 +1,17 @@
--- Fear counter, rebirth button with a confirm step, and popup messages. Shows server-owned values only.
+-- The main screen, laid out as in the owner's references: stacked buttons on the left, Fear at the bottom left, square icon
+-- buttons on the right, and a shop timer at the bottom right. Shows server-owned values only.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local Panels = require(Shared:WaitForChild("Panels"))
 local PlotLayout = require(Shared:WaitForChild("PlotLayout"))
+local Style = require(Shared:WaitForChild("Style"))
 local UiFit = require(Shared:WaitForChild("UiFit"))
 
 local player = Players.LocalPlayer
@@ -15,107 +19,140 @@ local popupRemote = Net.Event("Popup")
 local rebirthRemote = Net.Function("Rebirth")
 local fear = player:WaitForChild("leaderstats"):WaitForChild("Fear")
 
-local DARK = Color3.fromRGB(20, 10, 40)
-local LIME = Color3.fromRGB(60, 200, 90)
-local CRIMSON = Color3.fromRGB(220, 60, 90)
-local SILVER = Color3.fromRGB(150, 150, 165)
-
 local gui = Instance.new("ScreenGui") gui.Name = "HUD" gui.ResetOnSpawn = false
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function stroke(obj, thickness, border)
-	local s = Instance.new("UIStroke") s.Thickness = thickness s.Color = DARK
-	if border then s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border end
-	s.Parent = obj
-	return s
-end
+-- on touch screens the thumbstick and jump button take the bottom corners, so Fear and the timer go top right
+local touch = UserInputService.TouchEnabled
 
-local function text(name, size, pos, anchor, parent)
-	local t = Instance.new("TextLabel")
-	t.Name = name t.Size = size t.Position = pos t.AnchorPoint = anchor t.BackgroundTransparency = 1
-	t.Font = Enum.Font.FredokaOne t.TextScaled = true t.TextColor3 = Color3.fromRGB(90, 255, 90)
-	t.Parent = parent or gui
-	stroke(t, 4)
-	return t
-end
+-- the left-hand stack
+local sidebar = Instance.new("Frame") sidebar.Name = "Sidebar" sidebar.AnchorPoint = Vector2.new(0, 0.5) sidebar.Position = UDim2.new(0, 12, 0.45, 0)
+sidebar.Size = UDim2.fromOffset(176, 340) sidebar.BackgroundTransparency = 1 sidebar.Parent = gui
+UiFit.scale(sidebar)
+local stack = Instance.new("UIListLayout") stack.Padding = UDim.new(0, 8) stack.SortOrder = Enum.SortOrder.LayoutOrder stack.VerticalAlignment = Enum.VerticalAlignment.Center stack.Parent = sidebar
 
-local function button(name, label, color, size, pos, anchor, parent)
-	local b = Instance.new("TextButton")
-	b.Name = name b.Size = size b.Position = pos b.AnchorPoint = anchor
-	b.BackgroundColor3 = color b.Font = Enum.Font.FredokaOne b.TextScaled = true b.TextColor3 = Color3.new(1, 1, 1) b.Text = label
-	b.Parent = parent or gui
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 16)
-	stroke(b, 4, true)
-	stroke(b, 3)
-	local pad = Instance.new("UIPadding") pad.PaddingLeft = UDim.new(0, 10) pad.PaddingRight = UDim.new(0, 10) pad.PaddingTop = UDim.new(0, 8) pad.PaddingBottom = UDim.new(0, 8) pad.Parent = b
+local function sideButton(name, text, color, order)
+	local b = Style.button(name, sidebar, text, color)
+	b.Size = UDim2.new(1, 0, 0, 50)
+	b.LayoutOrder = order
 	return b
 end
 
--- on touch screens the thumbstick and jump button take the bottom corners, so Fear goes top right
-local touch = game:GetService("UserInputService").TouchEnabled
-local fearLabel = if touch
-	then text("Fear", UDim2.fromOffset(300, 56), UDim2.new(1, -16, 0, 2), Vector2.new(1, 0))
-	else text("Fear", UDim2.fromOffset(380, 80), UDim2.new(0, 16, 1, -16), Vector2.new(0, 1))
-fearLabel.TextXAlignment = if touch then Enum.TextXAlignment.Right else Enum.TextXAlignment.Left
-UiFit.scale(fearLabel)
+sideButton("Shop", "🛒 Shop", Style.GREEN, 1).Activated:Connect(function() Panels.toggle("Shop") end)
+sideButton("Index", "📖 Index", Style.CYAN, 2).Activated:Connect(function() Panels.toggle("Index") end)
+sideButton("Inventory", "🎒 Inventory", Style.ORANGE, 3).Activated:Connect(function() Panels.toggle("Inventory") end)
+local rebirthBtn = sideButton("Rebirth", "", Style.PINK, 4)
+sideButton("Settings", "⚙️ Settings", Style.GRAY, 5).Activated:Connect(function() Panels.toggle("Settings") end)
+local howTo = sideButton("HowToPlay", "❓ How to play", Style.BLUE, 6)
+howTo.Visible = false
 
+-- the right-hand icon buttons, with a badge when something's waiting
+local rightSide = Instance.new("Frame") rightSide.Name = "RightSide" rightSide.AnchorPoint = Vector2.new(1, 0.5) rightSide.Position = UDim2.new(1, -12, 0.45, 0)
+rightSide.Size = UDim2.fromOffset(68, 144) rightSide.BackgroundTransparency = 1 rightSide.Parent = gui
+UiFit.scale(rightSide)
+local rightStack = Instance.new("UIListLayout") rightStack.Padding = UDim.new(0, 8) rightStack.SortOrder = Enum.SortOrder.LayoutOrder rightStack.Parent = rightSide
+
+local function iconButton(name, icon, color, order)
+	local b = Style.button(name, rightSide, icon, color)
+	b.Size = UDim2.fromOffset(66, 66)
+	b.LayoutOrder = order
+	return b
+end
+local eggsButton = iconButton("Eggs", "🥚", Style.RED, 1)
+eggsButton.Activated:Connect(function() Panels.toggle("Eggs") end)
+iconButton("Forge", "🔥", Style.PURPLE, 2).Activated:Connect(function() Panels.toggle("Forge") end)
+
+local badge = Instance.new("TextLabel") badge.Name = "Badge" badge.AnchorPoint = Vector2.new(0.5, 0.5) badge.Position = UDim2.new(1, -2, 1, -2) badge.Size = UDim2.fromOffset(26, 26)
+badge.BackgroundColor3 = Style.GREEN badge.Font = Style.FONT badge.TextScaled = true badge.TextColor3 = Color3.new(1, 1, 1) badge.Text = "1" badge.Visible = false badge.ZIndex = 3 badge.Parent = eggsButton
+Style.corner(badge, 13)
+Style.outline(badge, 2)
+Style.textStroke(badge, 1.5)
+local function showBadge() badge.Visible = player:GetAttribute("PromiseEgg") == true end
+player:GetAttributeChangedSignal("PromiseEgg"):Connect(showBadge)
+showBadge()
+
+-- Fear and the rough rate
+local money = Instance.new("Frame") money.Name = "Money" money.BackgroundTransparency = 1 money.Size = UDim2.fromOffset(360, 92)
+if touch then
+	money.AnchorPoint = Vector2.new(1, 0) money.Position = UDim2.new(1, -12, 0, 2)
+else
+	money.AnchorPoint = Vector2.new(0, 1) money.Position = UDim2.new(0, 12, 1, -8)
+end
+money.Parent = gui
+UiFit.scale(money)
+local align = if touch then Enum.TextXAlignment.Right else Enum.TextXAlignment.Left
+local fearLabel = Style.label("Fear", money, "", Color3.new(1, 1, 1))
+fearLabel.Position = UDim2.fromOffset(0, 30) fearLabel.Size = UDim2.new(1, 0, 0, 62) fearLabel.TextXAlignment = align
+Style.textStroke(fearLabel, 3)
+local rateLabel = Style.label("Rate", money, "", Color3.fromRGB(170, 255, 120))
+rateLabel.Size = UDim2.new(1, 0, 0, 30) rateLabel.TextXAlignment = align
 -- an estimate only: Fear itself arrives when each scare finishes
-local rateLabel = if touch
-	then text("Rate", UDim2.fromOffset(300, 26), UDim2.new(1, -16, 0, 40), Vector2.new(1, 0))
-	else text("Rate", UDim2.fromOffset(300, 30), UDim2.new(0, 16, 1, -98), Vector2.new(0, 1))
-rateLabel.TextXAlignment = fearLabel.TextXAlignment
-UiFit.scale(rateLabel)
-rateLabel.TextColor3 = Color3.fromRGB(190, 255, 190)
 local function showRate()
 	local rate = player:GetAttribute("FearPerSecond") or 0
 	rateLabel.Visible = rate > 0
-	rateLabel.Text = "about " .. (rate < 100 and string.format("%.1f", rate) or Config.short(rate)) .. " Fear / sec"
+	rateLabel.Text = "+" .. (rate < 100 and string.format("%.1f", rate) or Config.short(rate)) .. " / sec"
 end
 player:GetAttributeChangedSignal("FearPerSecond"):Connect(showRate)
 showRate()
 
-local popup = text("Popup", UDim2.fromOffset(500, 44), UDim2.new(0.5, 0, 0.2, 0), Vector2.new(0.5, 0))
-popup.TextColor3 = Color3.new(1, 1, 1) popup.TextTransparency = 1
-local popupStroke = popup.UIStroke popupStroke.Transparency = 1
+-- the shop timer, from the server's clock
+local timer = Style.label("ShopTimer", gui, "", Color3.new(1, 1, 1))
+timer.Size = UDim2.fromOffset(250, 34)
+timer.TextXAlignment = Enum.TextXAlignment.Right
+if touch then
+	timer.AnchorPoint = Vector2.new(1, 0) timer.Position = UDim2.new(1, -12, 0, 72)
+else
+	timer.AnchorPoint = Vector2.new(1, 1) timer.Position = UDim2.new(1, -14, 1, -12)
+end
+UiFit.scale(timer)
+local rotation = Config.Balance.shop.rotationSeconds
+task.spawn(function()
+	while true do
+		local left = rotation - workspace:GetServerTimeNow() % rotation
+		timer.Text = string.format("🛒 New stock in %d:%02d", math.floor(left / 60), math.floor(left % 60))
+		task.wait(1)
+	end
+end)
 
-local rebirthBtn = button("Rebirth", "", CRIMSON, UDim2.fromOffset(150, 110), UDim2.new(0, 16, 0.36, 0), Vector2.new(0, 0.5))
-UiFit.scale(rebirthBtn)
-
--- confirm dialog: a rebirth spends a lot of Fear, so it is never one tap
-local dialog = Instance.new("Frame") dialog.Name = "RebirthConfirm" dialog.Visible = false
-dialog.Size = UDim2.fromOffset(420, 240) dialog.Position = UDim2.fromScale(0.5, 0.5) dialog.AnchorPoint = Vector2.new(0.5, 0.5)
-dialog.BackgroundColor3 = Color3.fromRGB(60, 40, 110) dialog.Parent = gui
-Instance.new("UICorner", dialog).CornerRadius = UDim.new(0, 18)
-stroke(dialog, 4, true)
-local sizeCap = Instance.new("UISizeConstraint") sizeCap.MaxSize = Vector2.new(420, 240) sizeCap.Parent = dialog
-UiFit.scale(dialog)
-local body = text("Body", UDim2.new(1, -32, 0, 130), UDim2.new(0.5, 0, 0, 16), Vector2.new(0.5, 0), dialog)
-body.TextColor3 = Color3.new(1, 1, 1)
-local yes = button("Yes", "Rebirth", LIME, UDim2.fromOffset(170, 64), UDim2.new(0.5, -8, 1, -16), Vector2.new(1, 1), dialog)
-local no = button("No", "Cancel", SILVER, UDim2.fromOffset(170, 64), UDim2.new(0.5, 8, 1, -16), Vector2.new(0, 1), dialog)
+-- popups
+local popup = Style.label("Popup", gui, "", Color3.new(1, 1, 1))
+popup.AnchorPoint = Vector2.new(0.5, 0) popup.Position = UDim2.new(0.5, 0, 0.2, 0) popup.Size = UDim2.new(0.8, 0, 0, 46)
+popup.TextXAlignment = Enum.TextXAlignment.Center popup.TextTransparency = 1
+local popupStroke = popup:FindFirstChildOfClass("UIStroke") popupStroke.Transparency = 1 popupStroke.Thickness = 3
 
 local seq = 0
 local function show(msg)
 	seq += 1
 	local mine = seq
 	popup.Text = msg popup.TextTransparency = 0 popupStroke.Transparency = 0
-	task.delay(1.5, function()
+	task.delay(2, function()
 		if mine ~= seq then return end
 		TweenService:Create(popup, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
 		TweenService:Create(popupStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
 	end)
 end
 
+-- confirm dialog: a rebirth spends a lot of Fear, so it is never one tap
+local dialog, _, dialogClose = Style.panel(gui, "RebirthConfirm", "🔄 Rebirth", Style.PINK, Vector2.new(480, 330))
+dialog.Size = UDim2.fromOffset(480, 330)
+UiFit.scale(dialog)
+local body = Style.label("Body", dialog, "", Color3.new(1, 1, 1))
+body.Position = UDim2.fromOffset(18, 66) body.Size = UDim2.new(1, -36, 0, 170) body.TextXAlignment = Enum.TextXAlignment.Center
+local yes = Style.button("Yes", dialog, "Rebirth", Style.GREEN)
+yes.AnchorPoint = Vector2.new(1, 1) yes.Position = UDim2.new(0.5, -6, 1, -14) yes.Size = UDim2.fromOffset(190, 64)
+local no = Style.button("No", dialog, "Cancel", Style.GRAY)
+no.AnchorPoint = Vector2.new(0, 1) no.Position = UDim2.new(0.5, 6, 1, -14) no.Size = UDim2.fromOffset(190, 64)
+
 local function refresh()
-	fearLabel.Text = "👻 " .. Config.short(fear.Value) .. " Fear"
+	fearLabel.Text = "👻 " .. Config.short(fear.Value)
 	local cost = player:GetAttribute("RebirthCost") or 0
 	if cost < 0 then
-		rebirthBtn.Text = "Max Rebirth"
-		rebirthBtn.BackgroundColor3 = SILVER
+		rebirthBtn.Text = "🔄 Max"
+		rebirthBtn.BackgroundColor3 = Style.GRAY
 	else
-		rebirthBtn.Text = "Rebirth\n" .. Config.short(cost)
-		rebirthBtn.BackgroundColor3 = fear.Value >= cost and LIME or CRIMSON
+		rebirthBtn.Text = "🔄 " .. Config.short(cost)
+		rebirthBtn.BackgroundColor3 = fear.Value >= cost and Style.GREEN or Style.PINK
 	end
 end
 fear.Changed:Connect(refresh)
@@ -132,12 +169,14 @@ local function askRebirth()
 	dialog.Visible = true
 	GuiService.SelectedObject = no
 end
-rebirthBtn.Activated:Connect(askRebirth)
--- the rebirth station in the hub opens the same dialog; matched by name because streaming may not have loaded the part yet
+Panels.register("Rebirth", askRebirth, dialog)
+rebirthBtn.Activated:Connect(function() Panels.toggle("Rebirth") end)
+-- the hall of rebirth opens the same dialog; matched by name because streaming may not have loaded the part yet
 game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt)
-	if prompt.Name == "RebirthPrompt" then askRebirth() end
+	if prompt.Name == "RebirthPrompt" then Panels.open("Rebirth") end
 end)
 no.Activated:Connect(function() dialog.Visible = false end)
+dialogClose.Activated:Connect(function() dialog.Visible = false end)
 
 local busy = false
 yes.Activated:Connect(function()

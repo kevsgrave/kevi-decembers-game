@@ -9,6 +9,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Tutorial = require(Shared:WaitForChild("Tutorial"))
 local GuideArrow = require(Shared:WaitForChild("GuideArrow"))
 local UiFit = require(Shared:WaitForChild("UiFit"))
+local Style = require(Shared:WaitForChild("Style"))
 
 local player = Players.LocalPlayer
 local stepRemote = Net.Event("TutorialStep")
@@ -21,26 +22,27 @@ local gui = Instance.new("ScreenGui") gui.Name = "TutorialGuide" gui.ResetOnSpaw
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
+-- the quest pill at the top of the screen, as in the references
 local caption = Instance.new("Frame") caption.Name = "Caption" caption.AnchorPoint = Vector2.new(0.5, 0)
 -- touch screens have Fear in the top corner, so the caption sits under it
-local touchOffset = if game:GetService("UserInputService").TouchEnabled then 66 else 0
-caption.Position = UDim2.new(0.5, 0, 0, 8 + touchOffset) caption.Size = UDim2.fromScale(0.9, 0.16) caption.BackgroundColor3 = Color3.fromRGB(35, 22, 70) caption.Visible = false caption.Parent = gui
-Instance.new("UICorner", caption).CornerRadius = UDim.new(0, 14)
-local border = Instance.new("UIStroke") border.Color = GOLD border.Thickness = 3 border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border border.Parent = caption
-local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(640, 110) cap.Parent = caption
+local touchOffset = if game:GetService("UserInputService").TouchEnabled then 110 else 0
+caption.Position = UDim2.new(0.5, 0, 0, 8 + touchOffset) caption.Size = UDim2.fromScale(0.74, 0.15) caption.BackgroundColor3 = Style.CYAN:Lerp(Color3.new(0, 0, 0), 0.45) caption.Visible = false caption.Parent = gui
+Style.corner(caption, 22)
+Style.outline(caption, 3, Style.INK)
+Style.studs(caption, 0.9)
+local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(620, 96) cap.Parent = caption
 
 local function label(name, position, size, color)
-	local t = Instance.new("TextLabel") t.Name = name t.Position = position t.Size = size t.BackgroundTransparency = 1
-	t.Font = Enum.Font.FredokaOne t.TextScaled = true t.TextColor3 = color t.Parent = caption
+	local t = Style.label(name, caption, "", color)
+	t.Position = position t.Size = size t.TextXAlignment = Enum.TextXAlignment.Center
 	return t
 end
-local stepText = label("Step", UDim2.fromScale(0.03, 0.05), UDim2.fromScale(0.94, 0.26), GOLD)
-local bodyText = label("Body", UDim2.fromScale(0.03, 0.31), UDim2.fromScale(0.94, 0.62), Color3.new(1, 1, 1))
+local stepText = label("Step", UDim2.fromScale(0.05, 0.08), UDim2.fromScale(0.9, 0.28), Style.GOLD)
+local bodyText = label("Body", UDim2.fromScale(0.05, 0.37), UDim2.fromScale(0.9, 0.56), Color3.new(1, 1, 1))
 
-local finishButton = Instance.new("TextButton") finishButton.Name = "Finish" finishButton.AnchorPoint = Vector2.new(0.5, 0)
-finishButton.Position = UDim2.new(0.5, 0, 0, 126 + touchOffset) finishButton.Size = UDim2.fromOffset(190, 52) finishButton.BackgroundColor3 = Color3.fromRGB(60, 200, 90)
-finishButton.Font = Enum.Font.FredokaOne finishButton.TextScaled = true finishButton.TextColor3 = Color3.new(1, 1, 1) finishButton.Text = "Finish" finishButton.Visible = false finishButton.Parent = gui
-Instance.new("UICorner", finishButton).CornerRadius = UDim.new(0, 12)
+local finishButton = Style.button("Finish", gui, "Finish", Style.GREEN)
+finishButton.AnchorPoint = Vector2.new(0.5, 0)
+finishButton.Position = UDim2.new(0.5, 0, 0, 112 + touchOffset) finishButton.Size = UDim2.fromOffset(190, 52) finishButton.Visible = false
 UiFit.scale(finishButton)
 
 local arrow = GuideArrow.new(gui, GOLD)
@@ -58,8 +60,8 @@ local function interfaceTarget(name)
 	if name == "hotbar" then
 		return Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y - 110)
 	end
-	local panel = player.PlayerGui:FindFirstChild("InventoryPanel")
-	local open = panel and panel:FindFirstChild("Open")
+	local hud = player.PlayerGui:FindFirstChild("HUD")
+	local open = hud and hud:FindFirstChild("Sidebar") and hud.Sidebar:FindFirstChild("Inventory")
 	if open then return open.AbsolutePosition + open.AbsoluteSize / 2 + Vector2.new(open.AbsoluteSize.X / 2 + 40, 0) end
 	return nil
 end
@@ -83,11 +85,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- after the tutorial, the steps can be read again. This only shows text and never talks to the server, so no reward can repeat.
-local replayButton = Instance.new("TextButton") replayButton.Name = "HowToPlay" replayButton.AnchorPoint = Vector2.new(0, 0.5)
-replayButton.Position = UDim2.new(0, 16, 0.63, 0) replayButton.Size = UDim2.fromOffset(150, 44) replayButton.BackgroundColor3 = Color3.fromRGB(60, 40, 110)
-replayButton.Font = Enum.Font.FredokaOne replayButton.TextScaled = true replayButton.TextColor3 = Color3.new(1, 1, 1) replayButton.Text = "How to play" replayButton.Visible = false replayButton.Parent = gui
-Instance.new("UICorner", replayButton).CornerRadius = UDim.new(0, 10)
-UiFit.scale(replayButton)
+local replayButton = player.PlayerGui:WaitForChild("HUD"):WaitForChild("Sidebar"):WaitForChild("HowToPlay")
 local replayIndex = nil
 
 local function showReplay()

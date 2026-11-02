@@ -7,8 +7,9 @@ Every asset the place uses, from a scan of Workspace, ServerStorage, MaterialSer
 | Asset | Where | Issue |
 |---|---|---|
 | **Jeff** (`art/monsters/jeff/jeff.blend`, baked into `JeffAnim`) | Every hatch today | Your notes base him on Jeff the Killer, and your Phase 8 text says not to copy him. **Must be replaced before publishing** |
-| **Texture 6372755229**, "Grid" by meow_pizza | The stud pattern on plots, paths and bedrooms | A third party's free Creator Store item, from before this work. Check you're happy using it, or replace it with your own |
+| **Texture 6372755229**, "Grid" by meow_pizza | The stud pattern on plots, paths, bedrooms and now every screen (`Style.luau`) | A third party's free Creator Store item, from before this work. Check you're happy using it, or replace it with your own |
 | **Sky ids** 6196665106, 6412503613, 6444320592, 6444884337, 6444884785 | Lighting | Not traced. They may be Roblox's defaults, so check they are |
+| **`ServerStorage.MapKit`** | Nothing since the 2026-11-02 rebuild | The map is parts only now, with no generated meshes. These models are unused and can be deleted once you're happy with the new look |
 | **`art/` folder** | Local only | Untracked in git, so your only copy of `jeff.blend` and the renders isn't backed up |
 
 ## Generated assets

@@ -7,7 +7,8 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
-local UiFit = require(Shared:WaitForChild("UiFit"))
+local Panels = require(Shared:WaitForChild("Panels"))
+local Style = require(Shared:WaitForChild("Style"))
 
 local player = Players.LocalPlayer
 local changedRemote = Net.Event("InventoryChanged")
@@ -21,71 +22,32 @@ local openCaseRemote = Net.Event("OpenCase")
 local hatchOwnedRemote = Net.Function("HatchOwnedEgg")
 local activateTrackerRemote = Net.Function("ActivateTracker")
 
-local DARK = Color3.fromRGB(20, 10, 40)
-local PANEL = Color3.fromRGB(60, 40, 110)
-local ROW = Color3.fromRGB(85, 60, 145)
-local LIME = Color3.fromRGB(60, 200, 90)
-local SILVER = Color3.fromRGB(150, 150, 165)
-local GOLD = Color3.fromRGB(255, 200, 40)
+local LIME, SILVER, GOLD = Style.GREEN, Style.GRAY, Style.GOLD
+local label, button = Style.label, Style.button
 
 local gui = Instance.new("ScreenGui") gui.Name = "InventoryPanel" gui.ResetOnSpawn = false
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function corner(obj, r) Instance.new("UICorner", obj).CornerRadius = UDim.new(0, r) end
-local function stroke(obj, border)
-	local s = Instance.new("UIStroke") s.Thickness = 3 s.Color = DARK
-	if border then s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border end
-	s.Parent = obj
-end
-local function label(name, parent, text, color)
-	local t = Instance.new("TextLabel") t.Name = name t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne
-	t.TextScaled = true t.TextColor3 = color or Color3.new(1, 1, 1) t.Text = text t.TextXAlignment = Enum.TextXAlignment.Left t.Parent = parent
-	return t
-end
-local function button(name, parent, text, color)
-	local b = Instance.new("TextButton") b.Name = name b.BackgroundColor3 = color b.Font = Enum.Font.FredokaOne
-	b.TextScaled = true b.TextColor3 = Color3.new(1, 1, 1) b.Text = text b.Parent = parent
-	corner(b, 10) stroke(b, true)
-	return b
-end
-
-local openButton = button("Open", gui, "Inventory", PANEL)
-openButton.AnchorPoint = Vector2.new(0, 0.5)
-openButton.Size = UDim2.fromOffset(150, 56)
-openButton.Position = UDim2.new(0, 16, 0.52, 0) -- under the rebirth button
-UiFit.scale(openButton)
-
-local panel = Instance.new("Frame") panel.Name = "Panel" panel.Visible = false
-panel.AnchorPoint = Vector2.new(0.5, 0.5) panel.Position = UDim2.fromScale(0.5, 0.5) panel.Size = UDim2.fromScale(0.92, 0.82)
-panel.BackgroundColor3 = PANEL panel.Parent = gui
-corner(panel, 18) stroke(panel, true)
-local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(640, 560) cap.Parent = panel
-
-local title = label("Title", panel, "Inventory", Color3.new(1, 1, 1))
-title.Position = UDim2.fromOffset(16, 10) title.Size = UDim2.new(1, -90, 0, 34)
-local closeButton = button("Close", panel, "X", SILVER)
-closeButton.AnchorPoint = Vector2.new(1, 0) closeButton.Position = UDim2.new(1, -10, 0, 8) closeButton.Size = UDim2.fromOffset(44, 44)
+local panel, title, closeButton = Style.panel(gui, "Panel", "Inventory", Style.ORANGE)
 
 local tabs = {"Monsters", "Items", "Index"}
+local TAB_COLOR = {Monsters = Style.ORANGE, Items = Style.PURPLE, Index = Style.CYAN}
+local HEADER_TITLE = {Monsters = "🎒 Monsters", Items = "🎁 Items", Index = "📖 Index"}
 local tabButtons = {}
 for i, name in tabs do
-	local b = button(name, panel, name, ROW)
-	b.Position = UDim2.new((i - 1) / 3, if i == 1 then 12 else 4, 0, 52)
-	b.Size = UDim2.new(1 / 3, -14, 0, 38)
+	local b = button(name, panel, name, Style.GRAY)
+	b.Position = UDim2.new((i - 1) / 3, if i == 1 then 12 else 4, 0, 62)
+	b.Size = UDim2.new(1 / 3, -14, 0, 40)
 	tabButtons[name] = b
 end
 
-local sortButton = button("Sort", panel, "", ROW)
-sortButton.Position = UDim2.fromOffset(12, 96) sortButton.Size = UDim2.fromOffset(190, 36)
+local sortButton = button("Sort", panel, "", Style.BLUE)
+sortButton.Position = UDim2.fromOffset(12, 110) sortButton.Size = UDim2.fromOffset(190, 36)
 local hint = label("Hint", panel, "", Color3.fromRGB(235, 235, 245))
-hint.Position = UDim2.fromOffset(12, 96) hint.Size = UDim2.new(1, -24, 0, 36) hint.TextWrapped = true
+hint.Position = UDim2.fromOffset(12, 110) hint.Size = UDim2.new(1, -24, 0, 36)
 
-local list = Instance.new("ScrollingFrame") list.Name = "List"
-list.Position = UDim2.fromOffset(12, 138) list.Size = UDim2.new(1, -24, 1, -150)
-list.BackgroundTransparency = 1 list.BorderSizePixel = 0 list.ScrollBarThickness = 8
-list.CanvasSize = UDim2.new() list.AutomaticCanvasSize = Enum.AutomaticSize.Y list.Parent = panel
-local layout = Instance.new("UIListLayout") layout.Padding = UDim.new(0, 6) layout.SortOrder = Enum.SortOrder.LayoutOrder layout.Parent = list
+local list = Style.list(panel, 152)
 
 local rarityRank = {}
 for rank, t in ipairs(Config.Balance.rarities) do rarityRank[t.id] = rank end
@@ -112,11 +74,8 @@ local function clearList()
 	end
 end
 
-local function rowFrame(name, position, height)
-	local f = Instance.new("Frame") f.Name = name f.LayoutOrder = position f.Size = UDim2.new(1, -12, 0, height)
-	f.BackgroundColor3 = ROW f.Parent = list
-	corner(f, 12)
-	return f
+local function rowFrame(name, position, height, edge)
+	return Style.card(name, list, position, height, edge)
 end
 
 local function twoLines(f, top, topColor, bottom, leftPad)
@@ -142,7 +101,7 @@ end
 
 local function renderMonsters()
 	local rows = current and current.rows or {}
-	title.Text = "Inventory " .. #rows .. " / " .. (current and current.capacity or Config.INVENTORY_CAP)
+	title.Text = "🎒 Monsters " .. #rows .. " / " .. (current and current.capacity or Config.INVENTORY_CAP)
 	sortButton.Text = "Sort: " .. SORTS[sortIndex].name
 	local less = SORTS[sortIndex].less
 	table.sort(rows, function(a, b)
@@ -152,7 +111,7 @@ local function renderMonsters()
 	end)
 	for position, row in ipairs(rows) do
 		local tier = Config.TIER_BY_NAME[row.tier]
-		local f = rowFrame(row.uid, position, 72)
+		local f = rowFrame(row.uid, position, 72, tier and tier.color)
 		local star = button("Favorite", f, row.favorited and "★" or "☆", row.favorited and GOLD or SILVER)
 		star.Position = UDim2.fromOffset(8, 14) star.Size = UDim2.fromOffset(44, 44)
 		star.Activated:Connect(function() favoriteRemote:FireServer(row.uid, not row.favorited) end)
@@ -182,7 +141,7 @@ local setOpenLater = function() end
 local function renderItems()
 	local boxes = current and current.boxes or {}
 	local accessories = current and current.accessories or {}
-	title.Text = "Items"
+	title.Text = HEADER_TITLE.Items
 	hint.Text = if caseSlot then "Choose an accessory for bedroom " .. caseSlot else "Press F at a display case to equip an accessory there"
 	local position = 0
 	for _, box in ipairs(boxes) do
@@ -259,7 +218,7 @@ local function renderIndex()
 			if e.known then found += 1 end
 		end
 		local tier = e.rarity and Config.TIER_BY_NAME[e.rarity]
-		local f = rowFrame(e.id, position, 66)
+		local f = rowFrame(e.id, position, 66, if e.known and tier then tier.color else nil)
 		local a = label("Top", f, if e.known then e.name else "???", if e.known and tier then tier.color else Color3.new(0.75, 0.75, 0.8))
 		a.Position = UDim2.fromOffset(12, 6) a.Size = UDim2.new(1, -24, 0, 28)
 		local detail = if e.rarity then e.rarity else "Any rarity"
@@ -276,7 +235,7 @@ local function renderIndex()
 		local b = label("Bottom", f, detail)
 		b.Position = UDim2.fromOffset(12, 36) b.Size = UDim2.new(1, -24, 0, 24)
 	end
-	title.Text = "Index " .. found .. " / " .. total
+	title.Text = "📖 Index " .. found .. " / " .. total
 	hint.Text = if Config.Balance.content.hatchRoster then "Hatch eggs to discover every species" else "Species can't be found yet. Hatches are Jeff for now."
 end
 
@@ -284,8 +243,9 @@ local function render()
 	clearList()
 	sortButton.Visible = currentTab == "Monsters"
 	hint.Visible = currentTab ~= "Monsters"
+	panel.Header.BackgroundColor3 = TAB_COLOR[currentTab]
 	for name, b in tabButtons do
-		b.BackgroundColor3 = if name == currentTab then LIME else ROW
+		b.BackgroundColor3 = if name == currentTab then TAB_COLOR[name] else Style.GRAY
 	end
 	if currentTab == "Monsters" then
 		renderMonsters()
@@ -323,14 +283,25 @@ openCaseRemote.OnClientEvent:Connect(function(slot)
 	setOpen(true)
 end)
 
-openButton.Activated:Connect(function() setOpen(not panel.Visible) end)
+-- what the HUD's buttons and the book's prompt open
+Panels.register("Inventory", function()
+	currentTab = "Monsters"
+	setOpen(true)
+end, panel)
+Panels.register("Index", function()
+	currentTab = "Index"
+	setOpen(true)
+end, panel)
+game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt)
+	if prompt.Name == "IndexPrompt" then Panels.open("Index") end
+end)
 closeButton.Activated:Connect(function() setOpen(false) end)
 sortButton.Activated:Connect(function()
 	sortIndex = sortIndex % #SORTS + 1
 	render()
 end)
 UserInputService.InputBegan:Connect(function(input, processed)
-	if not processed and input.KeyCode == Enum.KeyCode.I then setOpen(not panel.Visible) end
+	if not processed and input.KeyCode == Enum.KeyCode.I then Panels.toggle("Inventory") end
 end)
 
 -- the panel may load after the server's first update

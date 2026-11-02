@@ -115,7 +115,7 @@ I'd show you previews first, as your rule asks, and generating may cost credits.
 
 **4. Sounds.** See `ASSETS.md`. I can't hear audio, so you need to listen and pick.
 
-**5. Game name.** The place is titled "SCARE THEM", and the design calls it "Scare Sim". Which is it?
+**5. Game name.** Settled by the owner on 2026-11-02: **SCARE THEM**.
 
 ## Manual test
 

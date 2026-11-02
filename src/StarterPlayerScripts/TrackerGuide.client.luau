@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local GuideArrow = require(Shared:WaitForChild("GuideArrow"))
 local Net = require(Shared:WaitForChild("Net"))
+local Style = require(Shared:WaitForChild("Style"))
 
 local player = Players.LocalPlayer
 local stateRemote = Net.Event("TrackerState")
@@ -19,8 +20,9 @@ gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local arrow = GuideArrow.new(gui, TEAL)
-local readout = Instance.new("TextLabel") readout.Name = "Readout" readout.AnchorPoint = Vector2.new(0.5, 1) readout.Position = UDim2.new(0.5, 0, 1, -150)
-readout.Size = UDim2.fromScale(0.7, 0.06) readout.BackgroundTransparency = 1 readout.Font = Enum.Font.FredokaOne readout.TextScaled = true readout.TextColor3 = TEAL readout.TextStrokeTransparency = 0 readout.Visible = false readout.Parent = gui
+local readout = Style.label("Readout", gui, "", TEAL)
+readout.AnchorPoint = Vector2.new(0.5, 1) readout.Position = UDim2.new(0.5, 0, 1, -150) readout.Size = UDim2.fromScale(0.7, 0.06)
+readout.TextXAlignment = Enum.TextXAlignment.Center readout.Visible = false
 
 local state = nil
 local mound = nil

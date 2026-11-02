@@ -254,6 +254,7 @@ local function showInfo(player, bedroom)
 		if monster.Mutation then table.insert(extras, monster.Mutation) end
 		info.MonsterName.Text = Config.displayName(monster.Kind) .. " - " .. tier.name .. (if #extras > 0 then " (" .. table.concat(extras, ", ") .. ")" else "")
 		info.MonsterName.TextColor3 = tier.color
+		info.MonsterName.Font = Enum.Font.FredokaOne
 		info.Cash.Text = "👻 " .. Config.short(b.total) .. " / scare, every " .. tier.interval .. "s"
 		info.Factors.Text = Payout.describe(b, bedroom:GetAttribute("Tier") or "Room", monster.Size, monster.Mutation)
 	end
@@ -490,7 +491,6 @@ local function hatchEgg(player, ...)
 	elseif egg.source ~= "fear" or not egg.live then
 		return false, "Not available"
 	end
-	if not near(player, hub.Egg, 30) then return false, "Come back to the egg shrine" end
 	if Inventory.isFull(d) then return false, "Inventory is full (" .. Config.INVENTORY_CAP .. ")" end
 	if not promise and d.Fear < egg.price then return false, "Need " .. Config.short(egg.price) .. " Fear" end
 	-- no yields from the checks above to here, so a double request cannot spend once and hatch twice
@@ -708,9 +708,7 @@ end
 local function fuseMonsters(player, ...)
 	if not allowItems(player) or not Remotes.checkArgs("FuseMonsters", ...) then return false, "missing" end
 	local d = data(player)
-	local spot = workspace.Stations:FindFirstChild("FuseSpot")
-	if not d or not spot then return false, "missing" end
-	if not near(player, spot, 40) then return false, "far" end
+	if not d then return false, "missing" end
 	local uids = ...
 	local uid, why = Fusion.fuse(d, uids)
 	if not uid then return false, why end
@@ -742,8 +740,6 @@ local function buyShopItem(player, ...)
 	if not allowItems(player) or not Remotes.checkArgs("BuyShopItem", ...) then return false, "unavailable" end
 	local d = data(player)
 	if not d then return false, "unavailable" end
-	local spot = workspace.Stations:FindFirstChild("ShopClaim")
-	if not spot or not near(player, spot, 40) then return false, "far", Shop.stateFor(d, os.time()) end
 	local itemId, rotation = ...
 	local ok, why = Shop.buy(d, itemId, rotation, os.time())
 	if ok then
@@ -1109,6 +1105,7 @@ function GameService.Start()
 	local shopClaim = workspace:WaitForChild("Stations"):WaitForChild("ShopClaim")
 	shopClaim.ShopPrompt.Triggered:Connect(claimFreeBox)
 	setLabel(hub.ShopSign, "Shop")
+	-- the shop's prompt is also how the tutorial's free box is claimed
 	egg.BillboardGui.Text.Text = "Egg Shrine"
 	egg.HatchPrompt.ObjectText = "Egg Shrine"
 	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")

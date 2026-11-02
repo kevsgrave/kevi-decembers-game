@@ -8,6 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local Style = require(Shared:WaitForChild("Style"))
 
 local cueRemote = Net.Event("ManualCue")
 local tapRemote = Net.Event("ManualTap")
@@ -19,15 +20,17 @@ gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 local fade = Instance.new("Frame") fade.Name = "Fade" fade.Size = UDim2.fromScale(1, 1) fade.BackgroundColor3 = Color3.new(0, 0, 0)
 fade.BackgroundTransparency = 1 fade.Visible = false fade.Parent = gui
 local fadeText = Instance.new("TextLabel") fadeText.AnchorPoint = Vector2.new(0.5, 0.5) fadeText.Position = UDim2.fromScale(0.5, 0.5) fadeText.Size = UDim2.fromScale(0.7, 0.1)
-fadeText.BackgroundTransparency = 1 fadeText.Font = Enum.Font.FredokaOne fadeText.TextScaled = true fadeText.TextColor3 = Color3.new(1, 1, 1) fadeText.Text = "Crawling in..." fadeText.Parent = fade
+fadeText.BackgroundTransparency = 1 fadeText.Font = Style.FONT fadeText.TextScaled = true fadeText.TextColor3 = Color3.new(1, 1, 1) fadeText.Text = "Crawling in..." fadeText.Parent = fade
 
 local panel = Instance.new("Frame") panel.Name = "Cue" panel.Visible = false panel.AnchorPoint = Vector2.new(0.5, 1)
-panel.Position = UDim2.new(0.5, 0, 1, -110) panel.Size = UDim2.fromScale(0.8, 0.22) panel.BackgroundColor3 = Color3.fromRGB(60, 40, 110) panel.Parent = gui
-Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+panel.Position = UDim2.new(0.5, 0, 1, -110) panel.Size = UDim2.fromScale(0.8, 0.22) panel.BackgroundColor3 = Style.PANEL panel.Parent = gui
+Style.corner(panel, 8)
+Style.outline(panel, 4)
+Style.studs(panel, 0.9)
 local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(560, 170) cap.Parent = panel
 
 local bar = Instance.new("Frame") bar.Name = "Bar" bar.Position = UDim2.fromScale(0.05, 0.12) bar.Size = UDim2.fromScale(0.9, 0.28)
-bar.BackgroundColor3 = Color3.fromRGB(35, 25, 65) bar.ClipsDescendants = true bar.Parent = panel
+bar.BackgroundColor3 = Style.INK bar.ClipsDescendants = true bar.Parent = panel
 local function zone(width, color)
 	local z = Instance.new("Frame") z.AnchorPoint = Vector2.new(0.5, 0) z.Position = UDim2.fromScale(M.perfectAt, 0)
 	z.Size = UDim2.fromScale(width, 1) z.BackgroundColor3 = color z.BorderSizePixel = 0 z.Parent = bar
@@ -37,9 +40,8 @@ zone(M.perfectWidth, Color3.fromRGB(60, 220, 100))
 local marker = Instance.new("Frame") marker.Name = "Marker" marker.AnchorPoint = Vector2.new(0.5, 0) marker.Size = UDim2.new(0, 6, 1, 0)
 marker.BackgroundColor3 = Color3.new(1, 1, 1) marker.BorderSizePixel = 0 marker.ZIndex = 2 marker.Parent = bar
 
-local tapButton = Instance.new("TextButton") tapButton.Name = "Tap" tapButton.AnchorPoint = Vector2.new(0.5, 1) tapButton.Position = UDim2.fromScale(0.5, 0.94) tapButton.Size = UDim2.fromScale(0.6, 0.44)
-tapButton.BackgroundColor3 = Color3.fromRGB(220, 60, 90) tapButton.Font = Enum.Font.FredokaOne tapButton.TextScaled = true tapButton.TextColor3 = Color3.new(1, 1, 1) tapButton.Text = "BOO!" tapButton.Parent = panel
-Instance.new("UICorner", tapButton).CornerRadius = UDim.new(0, 12)
+local tapButton = Style.button("Tap", panel, "BOO!", Style.RED)
+tapButton.AnchorPoint = Vector2.new(0.5, 1) tapButton.Position = UDim2.fromScale(0.5, 0.94) tapButton.Size = UDim2.fromScale(0.6, 0.44)
 
 local result = Instance.new("TextLabel") result.Name = "Result" result.AnchorPoint = Vector2.new(0.5, 0.5) result.Position = UDim2.fromScale(0.5, 0.3) result.Size = UDim2.fromScale(0.7, 0.1)
 result.BackgroundTransparency = 1 result.Font = Enum.Font.FredokaOne result.TextScaled = true result.TextColor3 = Color3.fromRGB(255, 230, 80) result.TextStrokeTransparency = 0 result.Visible = false result.Parent = gui

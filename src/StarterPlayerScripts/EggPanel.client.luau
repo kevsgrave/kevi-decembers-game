@@ -7,52 +7,30 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local Panels = require(Shared:WaitForChild("Panels"))
+local Style = require(Shared:WaitForChild("Style"))
 local Sounds = require(Shared:WaitForChild("Sounds"))
 
 local player = Players.LocalPlayer
 local hatchRemote = Net.Function("HatchEgg")
 
-local DARK = Color3.fromRGB(20, 10, 40)
-local PANEL = Color3.fromRGB(60, 40, 110)
-local ROW = Color3.fromRGB(85, 60, 145)
-local LIME = Color3.fromRGB(60, 200, 90)
-local SILVER = Color3.fromRGB(150, 150, 165)
+local LIME = Style.GREEN
+local label, button = Style.label, Style.button
 
 local gui = Instance.new("ScreenGui") gui.Name = "EggPanel" gui.ResetOnSpawn = false gui.DisplayOrder = 2
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function corner(obj, r) Instance.new("UICorner", obj).CornerRadius = UDim.new(0, r) end
-local function label(name, parent, text, color)
-	local t = Instance.new("TextLabel") t.Name = name t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne t.TextScaled = true
-	t.TextColor3 = color or Color3.new(1, 1, 1) t.Text = text t.TextXAlignment = Enum.TextXAlignment.Left t.Parent = parent
-	return t
-end
-local function button(name, parent, text, color)
-	local b = Instance.new("TextButton") b.Name = name b.BackgroundColor3 = color b.Font = Enum.Font.FredokaOne b.TextScaled = true
-	b.TextColor3 = Color3.new(1, 1, 1) b.Text = text b.Parent = parent
-	corner(b, 10)
-	return b
-end
-
-local panel = Instance.new("Frame") panel.Name = "Panel" panel.Visible = false panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.55) panel.Size = UDim2.fromScale(0.92, 0.76) panel.BackgroundColor3 = PANEL panel.Parent = gui
-corner(panel, 18)
-local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(640, 540) cap.Parent = panel
-local title = label("Title", panel, "Egg Shrine", Color3.new(1, 1, 1))
-title.Position = UDim2.fromOffset(16, 10) title.Size = UDim2.new(1, -90, 0, 34)
-local closeButton = button("Close", panel, "X", SILVER)
-closeButton.AnchorPoint = Vector2.new(1, 0) closeButton.Position = UDim2.new(1, -10, 0, 8) closeButton.Size = UDim2.fromOffset(44, 44)
-local list = Instance.new("ScrollingFrame") list.Name = "List" list.Position = UDim2.fromOffset(12, 58) list.Size = UDim2.new(1, -24, 1, -70)
-list.BackgroundTransparency = 1 list.BorderSizePixel = 0 list.ScrollBarThickness = 8 list.CanvasSize = UDim2.new() list.AutomaticCanvasSize = Enum.AutomaticSize.Y list.Parent = panel
-local layout = Instance.new("UIListLayout") layout.Padding = UDim.new(0, 6) layout.SortOrder = Enum.SortOrder.LayoutOrder layout.Parent = list
+local panel, _, closeButton = Style.panel(gui, "Panel", "🥚 Eggs", Style.RED)
+local list = Style.list(panel, 62)
 
 -- the reveal
-local reveal = Instance.new("TextButton") reveal.Name = "Reveal" reveal.Size = UDim2.fromScale(1, 1) reveal.BackgroundColor3 = DARK reveal.BackgroundTransparency = 0.2
+local reveal = Instance.new("TextButton") reveal.Name = "Reveal" reveal.Size = UDim2.fromScale(1, 1) reveal.BackgroundColor3 = Style.INK reveal.BackgroundTransparency = 0.25
 reveal.AutoButtonColor = false reveal.Text = "" reveal.Visible = false reveal.ZIndex = 5 reveal.Parent = gui
 local function revealLabel(name, y, height, text)
 	local t = Instance.new("TextLabel") t.Name = name t.AnchorPoint = Vector2.new(0.5, 0.5) t.Position = UDim2.fromScale(0.5, y) t.Size = UDim2.fromScale(0.8, height)
-	t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne t.TextScaled = true t.TextColor3 = Color3.new(1, 1, 1) t.Text = text t.ZIndex = 6 t.Parent = reveal
+	t.BackgroundTransparency = 1 t.Font = Style.FONT t.TextScaled = true t.TextColor3 = Color3.new(1, 1, 1) t.Text = text t.ZIndex = 6 t.Parent = reveal
+	Style.textStroke(t, 3)
 	return t
 end
 local eggIcon = revealLabel("Egg", 0.42, 0.3, "🥚")
@@ -144,8 +122,7 @@ local function mutationLine()
 end
 
 local function addRow(egg, position, free)
-	local f = Instance.new("Frame") f.Name = egg.id f.LayoutOrder = position f.Size = UDim2.new(1, -12, 0, if free then 96 else 124) f.BackgroundColor3 = ROW f.Parent = list
-	corner(f, 12)
+	local f = Style.card(egg.id, list, position, if free then 96 else 124, if free then Style.GOLD else nil)
 	local top = label("Name", f, egg.name .. (free and " - FREE" or " - " .. Config.short(egg.price) .. " Fear"), Color3.fromRGB(255, 225, 110))
 	top.Position = UDim2.fromOffset(12, 6) top.Size = UDim2.new(1, -130, 0, 30)
 	local odds = label("Odds", f, oddsLine(egg))
@@ -183,9 +160,10 @@ local function open()
 end
 
 closeButton.Activated:Connect(function() panel.Visible = false end)
+Panels.register("Eggs", open, panel)
 player:GetAttributeChangedSignal("PromiseEgg"):Connect(function()
 	if panel.Visible then render() end
 end)
 ProximityPromptService.PromptTriggered:Connect(function(prompt)
-	if prompt.Name == "HatchPrompt" then open() end
+	if prompt.Name == "HatchPrompt" then Panels.open("Eggs") end
 end)

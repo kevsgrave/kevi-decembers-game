@@ -40,7 +40,7 @@ These use real saves, because they aren't plain Play. Your own save will change.
 ## On Creator Hub
 
 - [ ] Owner: complete the content maturity questionnaire. This game has scary themes aimed at kids, so answer carefully.
-- [ ] Owner: set the name, description, icon and thumbnails. Decide between "SCARE THEM" and "Scare Sim".
+- [ ] Owner: set the name, description, icon and thumbnails. The name is SCARE THEM.
 - [ ] Owner: set the genre, supported devices and privacy.
 - [ ] Owner: check current Roblox rules on odds disclosure before adding anything paid. Fear eggs are earned-only, and show their odds.
 

@@ -5,12 +5,12 @@ local Tutorial = {}
 
 Tutorial.STEPS = {
 	{id = "manual", text = "Crawl into a room and scare the sleeping kid!"},
-	{id = "egg", text = "Well done! Go to the egg shrine and hatch your free Promise Egg."},
+	{id = "egg", text = "Well done! Press the Egg button, or go to the egg shrine, and hatch your free Promise Egg."},
 	{id = "hold", text = "Your monster is in your hotbar. Select it to hold it."},
 	{id = "place", text = "Take it to an empty display case and press E (or tap) to place it."},
 	{id = "watch", text = "Watch through the window: your monster earns Fear by itself!"},
 	{id = "box", text = "Go to the shop and press E: your first visit gets a FREE Rare accessory box."},
-	{id = "open", text = "Open your Inventory, go to Items and open the box."},
+	{id = "open", text = "Press Inventory, go to the Items tab and open the box."},
 	{id = "equip", text = "Go to a display case, press F (or tap Accessory) and equip your accessory."},
 	{id = "done", text = "That's the loop!"},
 }

@@ -104,6 +104,7 @@ return function(): string
 	check("stations built", stations ~= nil)
 	if stations then
 		check("fusing sign", stations:FindFirstChild("FusingSign") ~= nil)
+		check("the book has its prompt", stations:FindFirstChild("IndexSpot") ~= nil and stations.IndexSpot:FindFirstChild("IndexPrompt") ~= nil)
 		local fuseSpot = stations:FindFirstChild("FuseSpot")
 		check("the cauldron has its prompt", fuseSpot ~= nil and fuseSpot:FindFirstChild("FusePrompt") ~= nil)
 		local shopSpot = stations:FindFirstChild("ShopClaim")
@@ -118,8 +119,27 @@ return function(): string
 	end
 	local nodes = workspace:FindFirstChild("DigNodes")
 	check("tracker dig spots exist", nodes ~= nil and #nodes:GetChildren() >= 12)
+	if nodes then
+		local blocked = {}
+		for _, node in nodes:GetChildren() do
+			for _, part in workspace:GetPartBoundsInRadius(node.Position + Vector3.new(0, 3, 0), 5) do
+				if part.CanCollide and part.Name ~= "Tile" and part ~= workspace:FindFirstChild("Baseplate") then
+					table.insert(blocked, node.Name .. " by " .. part:GetFullName())
+				end
+			end
+		end
+		check("every dig spot is clear to stand on", #blocked == 0, table.concat(blocked, ", "))
+	end
 	local lighting = game:GetService("Lighting")
-	check("night sky", lighting.ClockTime < 3 or lighting.ClockTime > 21)
+	check("no pumpkins or other Halloween props left", (function()
+		for _, d in workspace:GetDescendants() do
+			local n = d.Name:lower()
+			if n:find("pumpkin") or n:find("cauldron") or n:find("scarecrow") or n:find("witch") then return false end
+		end
+		return true
+	end)())
+	check("the ground is built", workspace:FindFirstChild("Ground") ~= nil and #workspace.Ground:GetChildren() > 500)
+	check("a misty late afternoon", lighting.ClockTime > 12 and lighting.ClockTime < 19)
 
 	table.insert(lines, `{if failed == 0 then "ALL PASSED" else failed .. " FAILED"} ({#lines} checks)`)
 	return table.concat(lines, "\n")
