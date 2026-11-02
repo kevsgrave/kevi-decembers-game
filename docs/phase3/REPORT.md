@@ -43,9 +43,9 @@ The save also has fields for lifetime Fear, species index, tutorial, accessories
 
 | Test | Result |
 |---|---|
-| `InventoryTests`, 45 checks | All passed |
+| `InventoryTests`, 46 checks | All passed |
 | `ConfigTests`, 63 checks | All passed, now with 24 broken tables |
-| `PlotTests`, 103 checks | All passed |
+| `PlotTests`, 104 checks | All passed |
 | Locked room, occupied case, wrong owner, double placement, moving monsters, two requests at once | Passed, on the rules only |
 | Rejoin, through JSON like a real save | Passed, keeps everything including tutorial, accessories, cases, trackers and settings |
 | v1 and v2 migrations, newer and NaN saves refused | Passed |
