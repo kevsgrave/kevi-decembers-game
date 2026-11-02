@@ -27,7 +27,7 @@ Already there and kept: hidden neutral lobby spawn, 8 plots, blue studded floors
 | `ConfigTests`, 53 checks | All passed |
 | Eight claims at once, no two owners, ninth player refused, double claim refused, race for one plot, release and reclaim | Passed, on the claim logic only, no real players |
 | Glass left and window right from the aisle, on all six bays | Passed, measured |
-| Pathfinding (radius 2, height 5, no jumping): spawn to all 8 pads, each pad through the gate, full length of an aisle, spawn to egg board, shop, fusing and rebirth | All found a route. Plot rooms were not in place for most of these |
+| Pathfinding (radius 2, height 5, no jumping): spawn to all 8 pads, each pad through the gate, full length of an aisle, spawn to egg board, shop, fusing and rebirth | All found a route, but with plots empty. Rooms exist only after claiming, so walking around them is in your manual test |
 | Cleanup on leave | Code read only, needs your test below |
 
 Two bugs turned up in the screenshots and are fixed: the claim pads were buried in the carpet, and floating ghosts blocked the shop sign and odds board.
