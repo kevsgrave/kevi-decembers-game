@@ -53,6 +53,18 @@ end
 local fearLabel = text("Fear", UDim2.fromOffset(380, 80), UDim2.new(0, 16, 1, -16), Vector2.new(0, 1))
 fearLabel.TextXAlignment = Enum.TextXAlignment.Left
 
+-- an estimate only: Fear itself arrives when each scare finishes
+local rateLabel = text("Rate", UDim2.fromOffset(300, 30), UDim2.new(0, 16, 1, -98), Vector2.new(0, 1))
+rateLabel.TextXAlignment = Enum.TextXAlignment.Left
+rateLabel.TextColor3 = Color3.fromRGB(190, 255, 190)
+local function showRate()
+	local rate = player:GetAttribute("FearPerSecond") or 0
+	rateLabel.Visible = rate > 0
+	rateLabel.Text = "about " .. (rate < 100 and string.format("%.1f", rate) or Config.short(rate)) .. " Fear / sec"
+end
+player:GetAttributeChangedSignal("FearPerSecond"):Connect(showRate)
+showRate()
+
 local popup = text("Popup", UDim2.fromOffset(500, 44), UDim2.new(0.5, 0, 0.2, 0), Vector2.new(0.5, 0))
 popup.TextColor3 = Color3.new(1, 1, 1) popup.TextTransparency = 1
 local popupStroke = popup.UIStroke popupStroke.Transparency = 1

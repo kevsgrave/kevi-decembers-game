@@ -8,6 +8,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local JeffRig = require(Shared:WaitForChild("JeffRig"))
+local Payout = require(Shared:WaitForChild("Payout"))
 local Net = require(Shared:WaitForChild("Net"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local DataTemplate = require(script.Parent.DataTemplate)
@@ -18,6 +19,7 @@ local RoomStyles = require(script.Parent.RoomStyles)
 local PlotFrame = require(script.Parent.PlotFrame)
 local PlotClaims = require(script.Parent.PlotClaims)
 local Inventory = require(script.Parent.Inventory)
+local ScareScheduler = require(script.Parent.ScareScheduler)
 
 local GameService = {}
 
@@ -26,16 +28,20 @@ local hub = workspace:WaitForChild("Hub")
 local template = ServerStorage:WaitForChild("PlotTemplate")
 
 local rng = Random.new()
-local popupRemote, rebirthRemote, inventoryRemote -- created in Start, from one list
+local popupRemote, rebirthRemote, inventoryRemote, cueRemote -- created in Start, from one list
 
 local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
 local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
 local allowRebirth = RateLimiter.new(Config.LIMITS.rebirth.capacity, Config.LIMITS.rebirth.refillPerSecond)
 local allowInventory = RateLimiter.new(Config.LIMITS.inventory.capacity, Config.LIMITS.inventory.refillPerSecond)
+local allowManual = RateLimiter.new(Config.LIMITS.manual.capacity, Config.LIMITS.manual.refillPerSecond)
 
 local claims = PlotClaims.new()
 local plotOf = claims.plotOf -- [player] = plot Model
 local lastManual = {} -- [player] = os.clock() of their last manual scare
+local manualSessions = {} -- [player] = the manual scare in progress
+local working = {} -- [bedroom] = {player, uid} for a monster doing automatic scares
+local reacting = {} -- [bedroom] = true while its guest is reacting, so nothing else can scare it
 
 local function bedroomsOf(player)
 	local plot = plotOf[player]
@@ -154,13 +160,19 @@ local function playScare(bedroom)
 	end
 end
 
+-- every Fear payout goes through here; the amount is already final
 local function pay(player, amount)
 	local d = data(player)
-	if not d then return end
-	amount = math.floor(amount * Config.rebirthMult(d.Rebirths))
+	if not d then return false end
 	setFear(player, d, d.Fear + amount)
 	d.TotalFearEarned = math.min(d.TotalFearEarned + amount, Config.MAX_FEAR)
-	popup(player, "+" .. Config.short(amount) .. " Fear")
+	return true
+end
+
+-- clients show the floating payout from these; visitors see them too
+local function announcePayout(bedroom, amount)
+	bedroom:SetAttribute("PayoutAmount", amount)
+	bedroom:SetAttribute("PayoutSeq", (bedroom:GetAttribute("PayoutSeq") or 0) + 1)
 end
 
 local function setBedroomTier(bedroom, tier)
@@ -170,23 +182,64 @@ local function setBedroomTier(bedroom, tier)
 	RoomStyles.apply(bedroom, tier.name) -- the room refurnishes itself: Cozy, Fancy or Gold Luxury
 end
 
--- display case readout: monster name and rarity, then expected Fear per scare under it
+-- this room's current payout, the same way it's paid
+local function roomPayout(d, bedroom, monster)
+	local accessory = Payout.accessoryOf(d, tostring(bedroom:GetAttribute("Index")))
+	return Payout.scare(monster, bedroom:GetAttribute("Mult") or 1, d.Rebirths, accessory)
+end
+
+-- the HUD's Fear per second: an estimate from the rooms as they stand; Fear itself only comes from finished scares
+local function updateRate(player, d)
+	local bedrooms = bedroomsOf(player)
+	local rate = 0
+	if bedrooms then
+		for slot, uid in d.Placed do
+			local b = bedrooms:FindFirstChild("Bedroom" .. slot)
+			local monster = d.Monsters[uid]
+			local tier = monster and Config.TIER_BY_NAME[monster.Tier]
+			if b and tier then rate += roomPayout(d, b, monster).total / tier.interval end
+		end
+	end
+	player:SetAttribute("FearPerSecond", rate)
+end
+
+-- display case readout: name and rarity word, what it pays and how often, then how that number is made up
 local function showInfo(player, bedroom)
 	local info = bedroom.ShowcaseLid.Info
 	local d = data(player)
-	local uid = d and d.Placed[tostring(bedroom:GetAttribute("Index"))]
+	if not d then return end
+	local uid = d.Placed[tostring(bedroom:GetAttribute("Index"))]
 	local monster = uid and d.Monsters[uid]
 	local tier = monster and Config.TIER_BY_NAME[monster.Tier]
 	if not tier then
 		info.MonsterName.Text = "Empty"
 		info.MonsterName.TextColor3 = Color3.new(1, 1, 1)
 		info.Cash.Text = "Hold a monster and press E"
-		return
+		info.Factors.Text = ""
+	else
+		local b = roomPayout(d, bedroom, monster)
+		info.MonsterName.Text = monster.Kind .. " - " .. tier.name
+		info.MonsterName.TextColor3 = tier.color
+		info.Cash.Text = "👻 " .. Config.short(b.total) .. " / scare, every " .. tier.interval .. "s"
+		info.Factors.Text = Payout.describe(b, bedroom:GetAttribute("Tier") or "Room", monster.Size, monster.Mutation)
 	end
-	local perScare = monster.BaseFear * bedroom:GetAttribute("Mult") * Config.rebirthMult(d.Rebirths)
-	info.MonsterName.Text = monster.Kind .. " - " .. tier.name
-	info.MonsterName.TextColor3 = tier.color
-	info.Cash.Text = "👻 " .. Config.short(perScare) .. " / scare, every " .. tier.interval .. "s"
+	updateRate(player, d)
+end
+
+-- the case's third line, added to each claimed copy so the template stays as it is
+local function addFactorsLine(bedroom)
+	local info = bedroom.ShowcaseLid.Info
+	info.Size = UDim2.fromScale(9, 4.8)
+	info.MonsterName.Size = UDim2.fromScale(1, 0.375)
+	info.Cash.Position = UDim2.fromScale(0, 0.375)
+	info.Cash.Size = UDim2.fromScale(1, 0.375)
+	local factors = info.Cash:Clone()
+	factors.Name = "Factors"
+	factors.Text = ""
+	factors.Position = UDim2.fromScale(0, 0.75)
+	factors.Size = UDim2.fromScale(1, 0.25)
+	factors.TextColor3 = Color3.fromRGB(235, 235, 245)
+	factors.Parent = info
 end
 
 -- inventory lives in the save; Tools in the Backpack are only the hotbar's view of it, rebuilt from the saved list
@@ -252,33 +305,65 @@ local function refreshLocks(player)
 	end
 end
 
-local function runShowcase(player, bedroom, uid)
-	local key = tostring(bedroom:GetAttribute("Index"))
+-- a scare has landed: the kid reacts, the room rerolls and a fresh kid gets into bed
+local function resetRoom(player, bedroom)
+	reacting[bedroom] = true
+	playScare(bedroom)
+	reacting[bedroom] = nil
+	if not bedroom.Parent then return end -- the plot was released while the kid reacted
+	setBedroomTier(bedroom, Config.pickBedroomTier(rng:NextNumber(0, 100)))
+	showInfo(player, bedroom)
+	makeGuest(bedroom.GuestSpot)
+end
+
+-- one scheduler for every room's automatic scares, driven by one loop in Start
+local scheduler = ScareScheduler.new({
+	-- Jeff sets off from the crawl hole; returns when he reaches the kid
+	begin = function(bedroom)
+		local work = working[bedroom]
+		local monster = bedroom:FindFirstChild("Monster")
+		local roomJeff = monster and monster:FindFirstChild("RoomJeff")
+		if not work or not roomJeff then return 0 end
+		local tl = setScareRoute(bedroom, roomJeff, Config.TIER_BY_NAME[work.tier].interval)
+		roomJeff:SetAttribute("ScareCount", (roomJeff:GetAttribute("ScareCount") or 0) + 1)
+		bedroom:SetAttribute("State", "Scaring")
+		return tl.pop
+	end,
+	-- pays once if everything is still true at the moment of the scare
+	pay = function(bedroom)
+		local work = working[bedroom]
+		local d = work and data(work.player)
+		local slot = tostring(bedroom:GetAttribute("Index"))
+		if not d or d.Placed[slot] ~= work.uid or plotOf[work.player] == nil or reacting[bedroom] or not bedroom:FindFirstChild("Guest") then return false end
+		local amount = roomPayout(d, bedroom, d.Monsters[work.uid]).total
+		if not pay(work.player, amount) then return false end
+		announcePayout(bedroom, amount)
+		return true
+	end,
+	reset = function(bedroom)
+		bedroom:SetAttribute("State", "Resetting")
+		task.spawn(resetRoom, working[bedroom].player, bedroom)
+	end,
+})
+
+local function stopRoom(bedroom)
+	scheduler:remove(bedroom)
+	working[bedroom] = nil
+	bedroom:SetAttribute("State", "Sleeping")
+end
+
+-- Jeff goes on show in the case and starts work on the next tick
+local function startRoom(player, bedroom, uid)
 	local d = data(player)
-	local tier = d and Config.TIER_BY_NAME[d.Monsters[uid].Tier]
+	local record = d and d.Monsters[uid]
+	local tier = record and Config.TIER_BY_NAME[record.Tier]
 	if not tier then return end
 	local old = bedroom:FindFirstChild("Monster") if old then old:Destroy() end
-	local monster = makeMonster(bedroom, tier)
+	makeMonster(bedroom, tier)
 	bedroom.ShowcaseGlass.PlacePrompt.ActionText = "Pick Up"
+	working[bedroom] = {player = player, uid = uid, tier = record.Tier}
+	scheduler:add(bedroom, tier.interval, os.clock())
 	showInfo(player, bedroom)
-	-- stops when the monster is picked up, the owner leaves, or the plot is unclaimed
-	local plot = plotOf[player]
-	local function still() return monster.Parent ~= nil and plot ~= nil and plotOf[player] == plot and d == data(player) and d.Placed[key] == uid end
-	-- one scare per timer: Jeff sneaks in, the kid reacts and Fear pays out the moment he pops up, then he sneaks back
-	while still() do
-		local cycleStart = os.clock()
-		local roomJeff = monster:FindFirstChild("RoomJeff")
-		local tl = setScareRoute(bedroom, roomJeff, tier.interval)
-		roomJeff:SetAttribute("ScareCount", (roomJeff:GetAttribute("ScareCount") or 0) + 1)
-		task.wait(tl.pop)
-		if not still() then break end
-		pay(player, d.Monsters[uid].BaseFear * bedroom:GetAttribute("Mult"))
-		playScare(bedroom)
-		setBedroomTier(bedroom, Config.pickBedroomTier(rng:NextNumber(0, 100)))
-		showInfo(player, bedroom)
-		makeGuest(bedroom.GuestSpot)
-		task.wait(math.max(0.5, tier.interval - (os.clock() - cycleStart)))
-	end
 end
 
 local function hatch(player)
@@ -316,8 +401,10 @@ local function useShowcase(player, b)
 	if not d or not near(player, b.ShowcaseGlass, b.ShowcaseGlass.PlacePrompt.MaxActivationDistance) then return end
 	local index = b:GetAttribute("Index")
 	local prompt = b.ShowcaseGlass.PlacePrompt
+	if manualSessions[player] and manualSessions[player].bedroom == b then return end
 	if d.Placed[tostring(index)] then
 		Inventory.pickUp(d, index)
+		stopRoom(b)
 		local m = b:FindFirstChild("Monster") if m then m:Destroy() end
 		prompt.ActionText = "Place Monster"
 		inventoryChanged(player)
@@ -332,7 +419,7 @@ local function useShowcase(player, b)
 		return
 	end
 	inventoryChanged(player)
-	task.spawn(runShowcase, player, b, uid)
+	startRoom(player, b, uid)
 end
 
 -- put a monster from the inventory panel on the hotbar and in the player's hand
@@ -360,17 +447,105 @@ local function getInventory(player, ...)
 	return d and Inventory.snapshot(d)
 end
 
-local function manualScare(player, b)
-	if not ownedOrWarn(player, b) or not data(player) or not b:FindFirstChild("Guest") then return end
-	if not near(player, b.CrawlHole, b.CrawlHole.ScarePrompt.MaxActivationDistance) then return end
-	if lastManual[player] and os.clock() - lastManual[player] < Config.MANUAL_COOLDOWN then return end
-	lastManual[player] = os.clock()
-	pay(player, Config.MANUAL_BASE * b:GetAttribute("Mult"))
-	playScare(b)
-	if not data(player).Placed[tostring(b:GetAttribute("Index"))] then
-		setBedroomTier(b, Config.pickBedroomTier(rng:NextNumber(0, 100)))
+-- Manual scare: a short scripted crawl through the hole, a timing bar, the kid reacts, then back out to the aisle.
+-- The character is anchored and moved by the server. The server times the tap itself; the client only says it tapped.
+local function holeSpots(b)
+	local P = PlotFrame.of(b)
+	local hole = P:PointToObjectSpace(b.CrawlHole.Position)
+	local floorY = P:PointToObjectSpace(b.RoomFloor.Position).Y + b.RoomFloor.Size.Y / 2
+	local side = math.sign(hole.X)
+	local inside = Vector3.new(hole.X + side * 3, floorY + 3, hole.Z)
+	local outside = Vector3.new(hole.X - side * 4, floorY + 3, hole.Z)
+	local bed = P:PointToObjectSpace(b.BedFrame.Position)
+	return P * CFrame.lookAt(inside, Vector3.new(bed.X, inside.Y, bed.Z)), P * CFrame.lookAt(outside, Vector3.new(0, outside.Y, outside.Z))
+end
+
+local function runManual(player, b, session)
+	local M = Config.Balance.manual
+	local char, plot = player.Character, plotOf[player]
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	local function alive()
+		return manualSessions[player] == session and player.Parent == Players and player.Character == char and humanoid.Health > 0 and plotOf[player] == plot and b.Parent ~= nil
 	end
-	makeGuest(b.GuestSpot)
+	local inside, outside = holeSpots(b)
+	root.Anchored = true
+	cueRemote:FireClient(player, {phase = "crawl", seconds = M.crawlSeconds})
+	task.wait(M.crawlSeconds)
+	if alive() then
+		char:PivotTo(inside)
+		session.phase = "cue"
+		session.cueStart = os.clock()
+		cueRemote:FireClient(player, {phase = "cue", seconds = M.cueSeconds})
+		while alive() and not session.tapAt and os.clock() - session.cueStart < M.cueSeconds do task.wait(0.03) end
+		session.phase = "paying"
+	end
+	if alive() then
+		local d = data(player)
+		-- exactly one payout per session; leaving or dying before this point pays nothing
+		local fraction = session.tapAt and math.clamp((session.tapAt - session.cueStart) / M.cueSeconds, 0, 1)
+		local bonus, word = Payout.timing(fraction)
+		local amount = Payout.manual(d.Rebirths, bonus)
+		if pay(player, amount) then
+			announcePayout(b, amount)
+			cueRemote:FireClient(player, {phase = "done", word = word, amount = amount})
+			playScare(b)
+		end
+	elseif player.Parent == Players then
+		cueRemote:FireClient(player, {phase = "done"})
+	end
+	if b.Parent then
+		if not b:FindFirstChild("Guest") then
+			setBedroomTier(b, Config.pickBedroomTier(rng:NextNumber(0, 100)))
+			showInfo(player, b)
+			makeGuest(b.GuestSpot)
+		end
+	end
+	if player.Character == char and char.Parent then
+		if b.Parent and humanoid.Health > 0 then char:PivotTo(outside) end
+		root.Anchored = false
+	end
+	reacting[b] = nil
+	if manualSessions[player] == session then manualSessions[player] = nil end
+end
+
+local function manualScare(player, b)
+	if not allowManual(player) or not ownedOrWarn(player, b) then return end
+	local d = data(player)
+	if not d or manualSessions[player] or not near(player, b.CrawlHole, b.CrawlHole.ScarePrompt.MaxActivationDistance) then return end
+	if b:GetAttribute("Index") > Config.unlockedBedrooms(d.Rebirths) then return end
+	if d.Placed[tostring(b:GetAttribute("Index"))] then
+		popup(player, "A monster is working in this room. Scare a kid in an empty one!")
+		return
+	end
+	if reacting[b] or not b:FindFirstChild("Guest") then
+		popup(player, "This room is settling down, give it a moment")
+		return
+	end
+	local waited = lastManual[player] and os.clock() - lastManual[player]
+	if waited and waited < Config.MANUAL_COOLDOWN then
+		popup(player, "Catch your breath: " .. math.ceil(Config.MANUAL_COOLDOWN - waited) .. "s")
+		return
+	end
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0 then return end
+	-- no yields from the checks above to here, so two prompts can't start two scares
+	lastManual[player] = os.clock()
+	local session = {bedroom = b, phase = "crawl"}
+	manualSessions[player] = session
+	reacting[b] = true
+	-- runManual clears reacting when it finishes, however it ends
+	task.spawn(runManual, player, b, session)
+end
+
+-- the client says it tapped; only the server's clock decides when, allowing for the player's connection
+local function manualTap(player, ...)
+	if not allowManual(player) or not Remotes.checkArgs("ManualTap", ...) then return end
+	local session = manualSessions[player]
+	if session and session.phase == "cue" and not session.tapAt then
+		session.tapAt = os.clock() - math.min(player:GetNetworkPing(), 0.3)
+	end
 end
 
 local function sendHome(player)
@@ -402,7 +577,9 @@ local function claim(player)
 	end
 	local bedrooms = plot.Contents.Bedrooms
 	for _, b in ipairs(bedrooms:GetChildren()) do
+		addFactorsLine(b)
 		setBedroomTier(b, Config.NORMAL_TIER)
+		b.CrawlHole.ScarePrompt.ActionText = "Crawl In"
 		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b) end)
 		b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
 	end
@@ -410,13 +587,16 @@ local function claim(player)
 	refreshLocks(player)
 	for key, uid in d.Placed do
 		local b = bedrooms:FindFirstChild("Bedroom" .. key)
-		if b and b:GetAttribute("Index") <= Config.unlockedBedrooms(d.Rebirths) then task.spawn(runShowcase, player, b, uid) end
+		if b and b:GetAttribute("Index") <= Config.unlockedBedrooms(d.Rebirths) then startRoom(player, b, uid) end
 	end
 	sendHome(player)
 	popup(player, "This is your plot! Scare a kid through the crawl hole, then hatch an egg in the middle of the map.")
 end
 
 local function unclaim(leaving)
+	for bedroom, work in working do
+		if work.player == leaving then stopRoom(bedroom) end
+	end
 	local plot = claims:release(leaving)
 	if not plot then return end
 	plot.Contents:ClearAllChildren()
@@ -467,6 +647,8 @@ function GameService.Start()
 	popupRemote = remotes.Popup
 	rebirthRemote = remotes.Rebirth
 	inventoryRemote = remotes.InventoryChanged
+	cueRemote = remotes.ManualCue
+	remotes.ManualTap.OnServerEvent:Connect(manualTap)
 	rebirthRemote.OnServerInvoke = rebirth
 	remotes.GetInventory.OnServerInvoke = getInventory
 	remotes.HoldMonster.OnServerEvent:Connect(holdMonster)
@@ -483,8 +665,15 @@ function GameService.Start()
 		if plot:IsA("Model") then setLabel(plot.OwnerSign, "Free plot") end
 	end
 	PlayerData.OnLoaded(onLoaded)
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			scheduler:tick(os.clock())
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		lastManual[player] = nil
+		manualSessions[player] = nil
 		unclaim(player)
 	end)
 end

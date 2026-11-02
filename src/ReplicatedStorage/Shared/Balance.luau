@@ -25,7 +25,13 @@ return {
 		baseFear = C(100),
 		cooldownSeconds = P(8),
 		multPerRebirth = P(0.25, "same as automatic scares"),
-		maxTimingBonus = P(1.2, "for the timing mini-game"),
+		maxTimingBonus = P(1.2, "a Perfect tap on the timing bar"),
+		goodTimingBonus = P(1.1, "a Good tap"),
+		perfectAt = P(0.75, "where the mark sits on the bar, 0 to 1"),
+		perfectWidth = P(0.1),
+		goodWidth = P(0.3),
+		crawlSeconds = P(0.8),
+		cueSeconds = P(2.4),
 	},
 
 	-- server rate limits for prompts and remotes
@@ -34,6 +40,7 @@ return {
 		showcase = {capacity = P(4), refillPerSecond = P(2)},
 		rebirth = {capacity = P(2), refillPerSecond = P(0.5)},
 		inventory = {capacity = P(8), refillPerSecond = P(4)},
+		manual = {capacity = P(4), refillPerSecond = P(2)},
 	},
 
 	-- least rare first; from Tiers For Monsters. Secret has no numbers in the notes.

@@ -22,7 +22,9 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Shared/PlotLayout.luau` | `...Shared.PlotLayout` | Bedroom numbers, floors and heights |
 | `.../Server/PlotClaims.luau` | `...Server.PlotClaims` | Who owns which plot |
 | `.../Server/Inventory.luau` | `...Server.Inventory` | Rules for owned monsters, hotbar and placing |
-| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau` | `ServerStorage.*` | Tests, command bar only |
+| `.../Server/ScareScheduler.luau` | `...Server.ScareScheduler` | One scheduler for every room's scares |
+| `.../Shared/Payout.luau` | `...Shared.Payout` | The Fear formula |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
 | not in the repo | `Workspace` (including `Stations`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
@@ -63,8 +65,8 @@ Client requests with several steps carry a request id (the last `id` argument in
 | HoldMonster | Event | client to server | monsterUid | live |
 | FavoriteMonster | Event | client to server | monsterUid, on | live |
 | InventoryChanged | Event | server to client | state | live |
-| ManualScare | Function | client to server | slotId | Phase 4 |
-| RoomChanged | Event | server to client | state | Phase 4 |
+| ManualCue | Event | server to client | state | live |
+| ManualTap | Event | client to server | none | live |
 | HatchEgg | Function | client to server | eggId, requestId | Phase 5 |
 | TutorialStep | Event | server to client | state | Phase 5 |
 | ClaimFreeBox | Function | client to server | none | Phase 5 |
@@ -78,7 +80,17 @@ Client requests with several steps carry a request id (the last `id` argument in
 | FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
-Plots are assigned by the server, so they need no remote. Placing and picking up are ProximityPrompts (server-side `Triggered`), so they need none either. Hatching and manual scares are prompts today too; their phases decide whether to keep the prompt or move to the remote above.
+Plots are assigned by the server, so they need no remote. Placing, picking up and starting a manual scare are ProximityPrompts (server-side `Triggered`), so they need none either. Hatching is a prompt today too; its phase decides whether to keep it or move to the remote above.
+
+## Scares and payouts
+
+`ScareScheduler.luau` runs every room from one loop: `Sleeping -> Scaring -> Paying -> Resetting -> Sleeping`. It takes time as an argument and never yields, so it can be tested with a fake clock. Taking a room out of the scheduler is what stops it paying.
+
+`Payout.luau` is the one formula, used for both paying and display: `round(base x room x size x mutation x accessory x rebirth)`. Manual scares have their own: `round(100 x manual rebirth multiplier x timing bonus)`, with no bedroom tier.
+
+Manual scares are a server-run session: fade, move inside, timing bar, pay once, kid reacts, move out. The character is anchored throughout. The client only says it tapped; the server times the tap against its own clock. Rooms with a monster working refuse manual scares.
+
+Clients get payouts from bedroom attributes (`PayoutSeq`, `PayoutAmount`, `Tier`, `State`), so visitors see them too.
 
 ## Inventory and hotbar
 
