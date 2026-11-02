@@ -19,6 +19,39 @@ AccessoryLook.LOOKS = {
 	LivingMoon = {shape = "Ball", size = 1.8, color = Color3.fromRGB(235, 240, 255), glow = 16, neon = true},
 }
 
+-- what each mutation looks like on a monster: a coloured glow and sparks. Original effects, using Roblox's built-in particle.
+AccessoryLook.MUTATIONS = {
+	Golden = {color = Color3.fromRGB(255, 205, 60), rate = 4},
+	Haunted = {color = Color3.fromRGB(150, 255, 220), rate = 6},
+	Creepy = {color = Color3.fromRGB(140, 220, 70), rate = 6},
+	Cursed = {color = Color3.fromRGB(190, 50, 230), rate = 8},
+	UnHoly = {color = Color3.fromRGB(235, 40, 40), rate = 12},
+}
+
+-- adds a mutation's look to a monster model; the rarity outline stays, so both can be read
+function AccessoryLook.dressMonster(model, mutation: string?)
+	local look = mutation and AccessoryLook.MUTATIONS[mutation]
+	if not look then return end
+	local highlight = model:FindFirstChildWhichIsA("Highlight")
+	if highlight then
+		highlight.FillColor = look.color
+		highlight.FillTransparency = 0.65
+	end
+	local body = model:FindFirstChildWhichIsA("BasePart")
+	if body then
+		local sparks = Instance.new("ParticleEmitter")
+		sparks.Name = "MutationSparks"
+		sparks.Color = ColorSequence.new(look.color)
+		sparks.Rate = look.rate
+		sparks.Lifetime = NumberRange.new(0.8, 1.4)
+		sparks.Speed = NumberRange.new(1, 2.5)
+		sparks.SpreadAngle = Vector2.new(180, 180)
+		sparks.LightEmission = 1
+		sparks.Size = NumberSequence.new(0.4, 0)
+		sparks.Parent = body
+	end
+end
+
 -- puts the look on top of a case's lid, replacing any old one; pass nil for an empty case
 function AccessoryLook.show(bedroom, accessoryId: string?)
 	local old = bedroom:FindFirstChild("CaseAccessory")

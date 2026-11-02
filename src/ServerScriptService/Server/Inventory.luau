@@ -4,6 +4,9 @@ local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared
 
 local Inventory = {}
 
+local SIZE_RANK = {}
+for rank, size in Config.Balance.fusion.sizes do SIZE_RANK[size.id] = rank end
+
 local function count(d): number
 	local n = 0
 	for _ in d.Monsters do n += 1 end
@@ -38,6 +41,10 @@ function Inventory.add(d, monster): string
 	local uid = newUid(d, "m")
 	d.Monsters[uid] = monster
 	d.Index[monster.Kind] = true
+	local seen = d.IndexSeen[monster.Kind] or {Mutations = {}}
+	d.IndexSeen[monster.Kind] = seen
+	if SIZE_RANK[monster.Size] and SIZE_RANK[monster.Size] > (SIZE_RANK[seen.BestSize] or 0) then seen.BestSize = monster.Size end
+	if monster.Mutation then seen.Mutations[monster.Mutation] = true end
 	if #d.Hotbar < Config.HOTBAR_SLOTS then table.insert(d.Hotbar, uid) end
 	return uid
 end
@@ -162,7 +169,7 @@ function Inventory.snapshot(d)
 	for uid, id in d.Eggs do table.insert(eggs, {uid = uid, id = id}) end
 	local trackers = {}
 	for uid, t in d.Trackers do table.insert(trackers, {uid = uid, state = t.State}) end
-	return {rows = rows, capacity = Config.INVENTORY_CAP, boxes = boxes, accessories = accessories, index = index, eggs = eggs, trackers = trackers}
+	return {rows = rows, capacity = Config.INVENTORY_CAP, boxes = boxes, accessories = accessories, index = index, seen = d.IndexSeen, eggs = eggs, trackers = trackers}
 end
 
 return Inventory

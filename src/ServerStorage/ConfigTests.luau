@@ -46,7 +46,7 @@ return function(balance: any?, validator: any?, remotes: any?): string
 	local perRarity = {}
 	for _, m in plain.monsters do perRarity[m.rarity] = (perRarity[m.rarity] or 0) + 1 end
 	check("every rarity has species", perRarity.Common == 8 and perRarity.Rare == 8 and perRarity.Epic == 7 and perRarity.Legendary == 6 and perRarity.Mythic == 5 and perRarity.SPOOKY == 5 and perRarity.Secret == 3)
-	check("first rebirth costs 50,000, then x3", plain.rebirth.costBase == 50000 and plain.rebirth.costGrowth == 3)
+	check("first rebirth costs 50,000, then x3, keeping the rest", plain.rebirth.costBase == 50000 and plain.rebirth.costGrowth == 3 and plain.rebirth.keepsRemainingFear == true)
 	check("starter egg is 500 Fear", row(plain.eggs, "StarterEgg").price == 500)
 	check("seven eggs, the five Fear eggs on sale", #plain.eggs == 7 and row(plain.eggs, "StarterEgg").live == true and row(plain.eggs, "NightmareEgg").live == true and row(plain.eggs, "TutorialEgg").live == false)
 	check("inventory holds 250", plain.economy.inventoryCap == 250)
@@ -112,8 +112,8 @@ return function(balance: any?, validator: any?, remotes: any?): string
 	check("HatchEgg takes two ids", Remotes.checkArgs("HatchEgg", "SpookyEgg", "req1") == true)
 	check("HatchEgg refuses a number id", Remotes.checkArgs("HatchEgg", 5, "req1") == false)
 	check("HatchEgg refuses an oversized id", Remotes.checkArgs("HatchEgg", string.rep("x", 65), "req1") == false)
-	check("FuseMonsters takes an id list", Remotes.checkArgs("FuseMonsters", {"m1", "m2"}, "req1") == true)
-	check("FuseMonsters refuses a map", Remotes.checkArgs("FuseMonsters", {a = "m1"}, "req1") == false)
+	check("FuseMonsters takes an id list", Remotes.checkArgs("FuseMonsters", {"m1", "m2"}) == true)
+	check("FuseMonsters refuses a map", Remotes.checkArgs("FuseMonsters", {a = "m1"}) == false)
 	check("clients can't call a server-to-client remote", Remotes.checkArgs("Popup", "hi") == false)
 
 	table.insert(lines, `{if failed == 0 then "ALL PASSED" else failed .. " FAILED"} ({#lines} lines)`)

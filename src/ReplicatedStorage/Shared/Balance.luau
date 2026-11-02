@@ -177,8 +177,9 @@ return {
 		floorHeight = P(32, "studs between floors, clear of the gable roofs"),
 		costBase = P(50000, "cost = costBase * costGrowth ^ rebirths"),
 		costGrowth = P(3),
+		cooldownSeconds = P(3),
 		multPerRebirth = P(0.25, "multiplier = 1 + multPerRebirth * rebirths"),
-		keepsRemainingFear = P(true, "owner's decision; the live game still wipes Fear until the rebirth phase"),
+		keepsRemainingFear = P(true, "owner's decision, see docs/spec/OVERRIDES.md"),
 	},
 
 	accessories = {

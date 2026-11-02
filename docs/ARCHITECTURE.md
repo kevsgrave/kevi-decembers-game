@@ -26,8 +26,9 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Shared/Payout.luau` | `...Shared.Payout` | The Fear formula |
 | `.../Shared/Tutorial.luau` | `...Shared.Tutorial` | The tutorial steps and rules |
 | `.../Shared/GuideArrow.luau` | `...Shared.GuideArrow` | The on-screen arrow |
-| `.../Server/Shop.luau`, `Tracker.luau`, `AccessoryLook.luau` | `...Server.*` | Shop rules, tracker rules, accessory shapes |
-| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau`, `ShopTests.luau` | `ServerStorage.*` | Tests, command bar only |
+| `.../Server/Shop.luau`, `Tracker.luau`, `AccessoryLook.luau` | `...Server.*` | Shop rules, tracker rules, accessory and mutation looks |
+| `.../Server/Fusion.luau`, `Rebirth.luau`, `PlotFloors.luau` | `...Server.*` | Fusion and rebirth rules, upper floor structure |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau`, `ShopTests.luau`, `ProgressTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
 | not in the repo | `Workspace` (including `Stations` and `DigNodes`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
@@ -38,7 +39,7 @@ Startup order: `Main` requires `Config` (Balance is validated here, and a failur
 
 Edit `Balance.luau`. Wrap the value in `C()` if the design notes settle it, `P()` if it's a default anyone can change. An untagged number or boolean stops the game at startup.
 
-Used by the live game so far: starting Fear, all egg prices and odds, the accessory items, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: mutations, fusion and floors (7), the 42-species roster (when original models exist).
+Used by the live game so far: starting Fear, all egg prices and odds, the accessory items, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: the 42-species roster (when original models exist).
 
 ## Server validation convention
 
@@ -85,7 +86,7 @@ Client requests with several steps carry a request id (the last `id` argument in
 | TrackerState | Event | server to client | state | live |
 | HatchOwnedEgg | Function | client to server | eggUid | live |
 | HatchReveal | Event | server to client | state | live |
-| FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
+| FuseMonsters | Function | client to server | monsterUids | live |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
 Plots are assigned by the server, so they need no remote. Placing, picking up, starting a manual scare and claiming the free box are ProximityPrompts (server-side `Triggered`), so they need none either.
@@ -110,6 +111,16 @@ Clients get payouts from bedroom attributes (`PayoutSeq`, `PayoutAmount`, `Tier`
 
 `ServerStorage` attributes `TestGrantFear` and `TestGrantTracker` are Studio-only test helpers.
 
+## Fusion, rebirth and floors
+
+`Fusion.luau` checks every ingredient before changing anything, so a fusion completes in full or changes nothing. The new monster has a new id and keeps the best base payout among those used. `Rebirth.luau` spends the cost and keeps the rest.
+
+`GameService.buildFloors` builds any floors the player has reached: `PlotFloors.build` makes the deck, wall, pillars and lift pads, then the bedroom template is copied, lifted by `PlotLayout.floorHeight` and renumbered. Rooms read their position from their own walls, so nothing needs to know which floor it's on. Rooms are capped at `bedroomsPerFloor x floorCap`.
+
+`AccessoryLook.dressMonster` adds a mutation's glow and sparks. Fear eggs roll a mutation on hatching; the tutorial and tracker eggs don't.
+
+`ServerStorage` attribute `TestForceMutation` is a Studio-only test helper.
+
 ## Inventory and hotbar
 
 `Inventory.luau` holds the rules and works only on a player's save table, with no yields, so requests can't interleave. `GameService` checks who is asking and how far away they are, then calls it, then calls `inventoryChanged` to update the hotbar and the panel.
@@ -122,7 +133,7 @@ Clients get payouts from bedroom attributes (`PayoutSeq`, `PayoutAmount`, `Tier`
 
 Plots are **auto-assigned, by the owner's decision (overrides the master prompt's claim station)**. When a player's save loads, `GameService` gives them the first free plot. If all are taken they visit, and they get the next plot that frees up. `PlotClaims` tracks ownership: `Unclaimed -> Claimed -> Released`, with no yields, so two players can't get one plot. Leaving releases the plot and empties `Contents`.
 
-`PlotLayout` maps bedroom numbers to floors: 1-6 is floor 1, 7-12 is floor 2, and odd bays are on the left. Saves key placements by bedroom number, so a slot stays stable on any plot. A floor is meant to be a copy of `PlotTemplate.Bedrooms` lifted by `PlotLayout.floorHeight(floor)`, renumbered with `bedroomIndex`. Floor 2 is built in Phase 7; `Config.BEDROOM_COUNT` still caps the game at 6 rooms.
+`PlotLayout` maps bedroom numbers to floors: 1-6 is floor 1, 7-12 is floor 2, and odd bays are on the left. Saves key placements by bedroom number, so a slot stays stable on any plot. A floor is meant to be a copy of `PlotTemplate.Bedrooms` lifted by `PlotLayout.floorHeight(floor)`, renumbered with `bedroomIndex`. Rooms are capped by `Config.MAX_BEDROOMS`.
 
 `MapBuilder.stations()` adds the rebirth station, fusing sign and ghosts without rebuilding the hub or plots. Re-running it replaces only what it made.
 
@@ -140,7 +151,8 @@ Defined in `DataTemplate.luau`. Store `JumpscareRNG_PlayerData_v1`, key `U_<user
 | `Monsters` | uid to `{Kind, Tier, BaseFear, Size, Mutation?, Provenance, Favorited?}` | Kind, Tier, BaseFear, Favorited; Size and Mutation later |
 | `Placed` | bedroom index as a string to uid | yes |
 | `Hotbar` | list of uids | yes |
-| `Index` | species id to true | written |
+| `Index` | species id to true | yes |
+| `IndexSeen` | species id to `{BestSize?, Mutations}` | yes |
 | `Boxes`, `Accessories`, `Eggs` | uid to definition id | Phases 5, 6 |
 | `CaseAccessories` | bedroom index to accessory uid | Phase 5 |
 | `Trackers` | uid to `{State, Node?, ExpiresAt?}` | yes |

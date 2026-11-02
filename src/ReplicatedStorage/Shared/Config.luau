@@ -17,7 +17,7 @@ Config.EGG_COST = eggsById[LIVE_EGG].price
 Config.EGG_NAME = eggsById[LIVE_EGG].name
 Config.START_FEAR = B.start.fear
 Config.START_BEDROOMS = B.rebirth.startBedrooms
-Config.BEDROOM_COUNT = B.rebirth.bedroomsPerFloor
+Config.MAX_BEDROOMS = B.rebirth.bedroomsPerFloor * B.rebirth.floorCap
 Config.MANUAL_BASE = B.manual.baseFear
 Config.MANUAL_COOLDOWN = B.manual.cooldownSeconds
 Config.INVENTORY_CAP = B.economy.inventoryCap
@@ -88,6 +88,15 @@ function Config.pickFromEgg(eggId, r)
 	return last -- float rounding at the very top of the range
 end
 
+-- a hatch's mutation roll, r in [0, 100): a mutation id, or nil for none. Chances are shown with each egg's odds.
+function Config.pickMutation(r)
+	for _, m in B.mutations do
+		if r < m.rollChance then return m.id end
+		r -= m.rollChance
+	end
+	return nil
+end
+
 -- each accessory box's contents, in order
 Config.BOX_ITEMS = {}
 for _, box in B.accessories.boxes do Config.BOX_ITEMS[box.id] = {} end
@@ -105,7 +114,7 @@ end
 
 function Config.rebirthCost(rebirths) return B.rebirth.costBase * B.rebirth.costGrowth ^ rebirths end
 function Config.rebirthMult(rebirths) return 1 + B.rebirth.multPerRebirth * rebirths end
-function Config.unlockedBedrooms(rebirths) return math.min(Config.BEDROOM_COUNT, Config.START_BEDROOMS + rebirths * B.rebirth.bedroomsPerRebirth) end
+function Config.unlockedBedrooms(rebirths) return math.min(Config.MAX_BEDROOMS, Config.START_BEDROOMS + rebirths * B.rebirth.bedroomsPerRebirth) end
 
 -- rounds down, so 4,999 never reads as 5.0K next to a 5,000 price
 function Config.short(n)

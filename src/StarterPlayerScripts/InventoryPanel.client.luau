@@ -261,6 +261,14 @@ local function renderIndex()
 		local detail = if e.rarity then e.rarity else "Any rarity"
 		if e.known and e.concept then detail ..= ": " .. e.concept end
 		if not e.known then detail ..= ", not discovered yet" end
+		local seen = current and current.seen and current.seen[e.id]
+		if seen then
+			local badges = {}
+			if seen.BestSize and seen.BestSize ~= "Normal" then table.insert(badges, "Best size: " .. seen.BestSize) end
+			for mutation in seen.Mutations or {} do table.insert(badges, mutation) end
+			table.sort(badges)
+			if #badges > 0 then detail ..= " [" .. table.concat(badges, ", ") .. "]" end
+		end
 		local b = label("Bottom", f, detail)
 		b.Position = UDim2.fromOffset(12, 36) b.Size = UDim2.new(1, -24, 0, 24)
 	end

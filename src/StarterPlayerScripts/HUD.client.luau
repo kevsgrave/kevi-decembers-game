@@ -7,6 +7,7 @@ local GuiService = game:GetService("GuiService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local PlotLayout = require(Shared:WaitForChild("PlotLayout"))
 
 local player = Players.LocalPlayer
 local popupRemote = Net.Event("Popup")
@@ -71,7 +72,7 @@ local popupStroke = popup.UIStroke popupStroke.Transparency = 1
 
 local rebirthBtn = button("Rebirth", "", CRIMSON, UDim2.fromOffset(150, 110), UDim2.new(0, 16, 0.5, 0), Vector2.new(0, 0.5))
 
--- confirm dialog: a rebirth resets Fear, so it is never one tap
+-- confirm dialog: a rebirth spends a lot of Fear, so it is never one tap
 local dialog = Instance.new("Frame") dialog.Name = "RebirthConfirm" dialog.Visible = false
 dialog.Size = UDim2.fromOffset(420, 240) dialog.Position = UDim2.fromScale(0.5, 0.5) dialog.AnchorPoint = Vector2.new(0.5, 0.5)
 dialog.BackgroundColor3 = Color3.fromRGB(60, 40, 110) dialog.Parent = gui
@@ -114,7 +115,9 @@ local function askRebirth()
 	local cost = player:GetAttribute("RebirthCost") or 0
 	if cost < 0 then show("All bedrooms unlocked") return end
 	local rebirths = player.leaderstats:WaitForChild("Rebirths").Value
-	body.Text = string.format("Rebirth for %s Fear?\nYour Fear goes back to 0. You keep your monsters, unlock a bedroom and earn x%s Fear.", Config.short(cost), tostring(Config.rebirthMult(rebirths + 1)))
+	local rooms = Config.unlockedBedrooms(rebirths + 1)
+	local newFloor = PlotLayout.floorsVisible(rooms) > PlotLayout.floorsVisible(Config.unlockedBedrooms(rebirths))
+	body.Text = string.format("Rebirth for %s Fear?\nYou keep the other %s Fear and all your monsters and items. You get room %d%s and x%s Fear.", Config.short(cost), Config.short(math.max(0, fear.Value - cost)), rooms, newFloor and " and a new floor" or "", tostring(Config.rebirthMult(rebirths + 1)))
 	dialog.Visible = true
 	GuiService.SelectedObject = no
 end

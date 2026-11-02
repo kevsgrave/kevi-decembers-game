@@ -48,6 +48,7 @@ function JeffRig.pose(model, f, origin, inPlace)
 		local a, b = data.frames[fa][boneIndex.Root], data.frames[math.min(fa + 1, #data.frames)][boneIndex.Root]
 		ox, oz = a[1] + (b[1] - a[1]) * (f - fa), a[3] + (b[3] - a[3]) * (f - fa)
 	end
+	local scale = model:GetAttribute("Scale") or 1
 	local bones = {}
 	for name, info in pairs(parts) do
 		local part = model:FindFirstChild(name)
@@ -62,17 +63,19 @@ function JeffRig.pose(model, f, origin, inPlace)
 				math.abs(info.axes[1].X) * s.X + math.abs(info.axes[1].Y) * s.Y + math.abs(info.axes[1].Z) * s.Z,
 				math.abs(info.axes[2].X) * s.X + math.abs(info.axes[2].Y) * s.Y + math.abs(info.axes[2].Z) * s.Z,
 				math.abs(info.axes[3].X) * s.X + math.abs(info.axes[3].Y) * s.Y + math.abs(info.axes[3].Z) * s.Z)
-			part.Size = info.size * stretch
-			part.CFrame = origin * FACE * cf * CFrame.new(info.pos * s) * info.rot
+			part.Size = info.size * stretch * scale
+			local rel = cf * CFrame.new(info.pos * s) * info.rot
+			part.CFrame = origin * FACE * (rel + rel.Position * (scale - 1)) -- grows from his feet
 		end
 	end
 end
 
 -- rig names which client animator (if any) drives this Jeff; it is set before parenting so clients see it on arrival
-function JeffRig.build(parent, origin, rig)
+function JeffRig.build(parent, origin, rig, scale)
 	local model = Instance.new("Model")
 	model.Name = "Monster"
 	model:SetAttribute("Rig", rig or "Jeff")
+	model:SetAttribute("Scale", scale or 1)
 	model:SetAttribute("Origin", origin)
 	for name, info in pairs(parts) do
 		local p = Instance.new("Part")

@@ -332,10 +332,13 @@ function MapBuilder.stations()
 	local R = MapBuilder.PLAZA_RADIUS
 	local WOOD = Color3.fromRGB(80, 50, 35)
 
-	-- fusing opens in Phase 7: the cauldron is its station, and the sign says so plainly
+	-- the cauldron is the fusing station; its prompt opens the fusing panel
 	local fuseCF = ringCF(R - 12, 202.5, 0.6) * CFrame.new(0, 0, 3.5)
 	local fuseSign = deco(P(f, "FusingSign", Vector3.new(10, 2.4, 0.4), fuseCF * CFrame.new(0, 7.5, 0), WOOD, Enum.Material.WoodPlanks))
-	label(fuseSign, Enum.NormalId.Front, "Fusing - opening soon", Color3.fromRGB(255, 200, 70))
+	label(fuseSign, Enum.NormalId.Front, "Fusing Cauldron", Color3.fromRGB(255, 200, 70))
+	local fuseSpot = P(f, "FuseSpot", Vector3.new(4, 6, 1), ringCF(R - 12, 202.5, 0.6) * CFrame.new(0, 3, -3), Color3.new(1, 1, 1), nil, {Transparency = 1, CanCollide = false, CanTouch = false})
+	local fusePrompt = Instance.new("ProximityPrompt") fusePrompt.Name = "FusePrompt" fusePrompt.ActionText = "Fuse Monsters" fusePrompt.ObjectText = "Fusing Cauldron"
+	fusePrompt.HoldDuration = 0.2 fusePrompt.MaxActivationDistance = 12 fusePrompt.RequiresLineOfSight = false fusePrompt.Parent = fuseSpot
 	for _, x in ipairs({-4.2, 4.2}) do
 		deco(P(f, "FusingPost", Vector3.new(0.5, 7.5, 0.5), fuseCF * CFrame.new(x, 3.75, 0.3), Color3.fromRGB(70, 45, 30), Enum.Material.Wood))
 	end

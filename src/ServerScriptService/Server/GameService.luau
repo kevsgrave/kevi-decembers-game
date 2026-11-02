@@ -10,6 +10,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local JeffRig = require(Shared:WaitForChild("JeffRig"))
 local Payout = require(Shared:WaitForChild("Payout"))
 local Tutorial = require(Shared:WaitForChild("Tutorial"))
+local PlotLayout = require(Shared:WaitForChild("PlotLayout"))
 local Net = require(Shared:WaitForChild("Net"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local DataTemplate = require(script.Parent.DataTemplate)
@@ -19,6 +20,9 @@ local GuestKids = require(script.Parent.GuestKids)
 local RoomStyles = require(script.Parent.RoomStyles)
 local PlotFrame = require(script.Parent.PlotFrame)
 local PlotClaims = require(script.Parent.PlotClaims)
+local PlotFloors = require(script.Parent.PlotFloors)
+local Fusion = require(script.Parent.Fusion)
+local Rebirth = require(script.Parent.Rebirth)
 local Shop = require(script.Parent.Shop)
 local Tracker = require(script.Parent.Tracker)
 local AccessoryLook = require(script.Parent.AccessoryLook)
@@ -49,6 +53,9 @@ local working = {} -- [bedroom] = {player, uid} for a monster doing automatic sc
 local reacting = {} -- [bedroom] = true while its guest is reacting, so nothing else can scare it
 local tutorialSent = {} -- [player] = what they were last told, so a repeat isn't sent
 local lastHatch = {} -- [player] = the last hatch request and its answer, so a retry can't hatch twice
+local lastRebirth = {} -- [player] = os.clock() of their last rebirth
+local SIZE_SCALE = {}
+for _, size in Config.Balance.fusion.sizes do SIZE_SCALE[size.id] = size.modelScale end
 
 local function bedroomsOf(player)
 	local plot = plotOf[player]
@@ -88,7 +95,7 @@ end
 
 local function publishRebirth(player, d)
 	player.leaderstats.Rebirths.Value = d.Rebirths
-	local maxed = Config.unlockedBedrooms(d.Rebirths) >= Config.BEDROOM_COUNT
+	local maxed = Config.unlockedBedrooms(d.Rebirths) >= Config.MAX_BEDROOMS
 	player:SetAttribute("RebirthCost", maxed and -1 or Config.rebirthCost(d.Rebirths))
 	player:SetAttribute("Multiplier", Config.rebirthMult(d.Rebirths))
 end
@@ -148,13 +155,15 @@ end
 -- Jeff on display in the case, plus a second Jeff who waits at the bedroom's crawl hole and sneaks in for each scare.
 -- The room Jeff is a child of the display one, so picking the monster up removes both.
 -- A rarity-coloured outline shows his tier (the case also names it).
-local function makeMonster(bedroom, tier)
-	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0), "JeffDisplay")
-	local roomJeff = JeffRig.build(m, roomOrigin(bedroom), "JeffRoom")
+local function makeMonster(bedroom, tier, record)
+	local scale = SIZE_SCALE[record.Size] or 1
+	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0), "JeffDisplay", scale)
+	local roomJeff = JeffRig.build(m, roomOrigin(bedroom), "JeffRoom", scale)
 	roomJeff.Name = "RoomJeff"
 	local _, path = setScareRoute(bedroom, roomJeff, tier.interval)
 	JeffRig.idle(roomJeff, path)
 	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m
+	AccessoryLook.dressMonster(m, record.Mutation)
 	return m
 end
 
@@ -228,7 +237,10 @@ local function showInfo(player, bedroom)
 		info.Factors.Text = ""
 	else
 		local b = roomPayout(d, bedroom, monster)
-		info.MonsterName.Text = monster.Kind .. " - " .. tier.name
+		local extras = {}
+		if monster.Size ~= "Normal" then table.insert(extras, monster.Size) end
+		if monster.Mutation then table.insert(extras, monster.Mutation) end
+		info.MonsterName.Text = monster.Kind .. " - " .. tier.name .. (if #extras > 0 then " (" .. table.concat(extras, ", ") .. ")" else "")
 		info.MonsterName.TextColor3 = tier.color
 		info.Cash.Text = "👻 " .. Config.short(b.total) .. " / scare, every " .. tier.interval .. "s"
 		info.Factors.Text = Payout.describe(b, bedroom:GetAttribute("Tier") or "Room", monster.Size, monster.Mutation)
@@ -430,7 +442,7 @@ local function startRoom(player, bedroom, uid)
 	local tier = record and Config.TIER_BY_NAME[record.Tier]
 	if not tier then return end
 	local old = bedroom:FindFirstChild("Monster") if old then old:Destroy() end
-	makeMonster(bedroom, tier)
+	makeMonster(bedroom, tier, record)
 	bedroom.ShowcaseGlass.PlacePrompt.ActionText = "Pick Up"
 	working[bedroom] = {player = player, uid = uid, tier = record.Tier}
 	scheduler:add(bedroom, tier.interval, os.clock())
@@ -460,7 +472,12 @@ local function hatchEgg(player, ...)
 	-- no yields from the checks above to here, so a double request cannot spend once and hatch twice
 	local tier = Config.pickFromEgg(eggId, rng:NextNumber(0, 100))
 	local baseFear = rng:NextInteger(tier.min, tier.max)
-	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, baseFear, promise and "tutorial" or "egg"))
+	-- the tutorial's egg never mutates, so it can't surprise a new player
+	local mutation = if promise then nil else Config.pickMutation(rng:NextNumber(0, 100))
+	-- a test helper set from the command bar; IsStudio is false on real servers
+	local forced = game:GetService("RunService"):IsStudio() and ServerStorage:GetAttribute("TestForceMutation")
+	if type(forced) == "string" and not promise then mutation = forced end
+	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, baseFear, promise and "tutorial" or "egg", mutation))
 	if promise then
 		d.Tutorial.EggUsed = true
 	else
@@ -468,7 +485,7 @@ local function hatchEgg(player, ...)
 	end
 	inventoryChanged(player)
 	task.spawn(PlayerData.SaveNowAsync, player)
-	local result = {kind = Config.MONSTER_KIND, tier = tier.name, baseFear = baseFear}
+	local result = {kind = Config.MONSTER_KIND, tier = tier.name, baseFear = baseFear, mutation = mutation}
 	lastHatch[player] = {requestId = requestId, result = result}
 	return true, result
 end
@@ -636,6 +653,21 @@ local function manualTap(player, ...)
 	end
 end
 
+-- the client names the monsters; the server checks everything again and makes the new one, or changes nothing
+local function fuseMonsters(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("FuseMonsters", ...) then return false, "missing" end
+	local d = data(player)
+	local spot = workspace.Stations:FindFirstChild("FuseSpot")
+	if not d or not spot then return false, "missing" end
+	if not near(player, spot, 40) then return false, "far" end
+	local uids = ...
+	local uid, why = Fusion.fuse(d, uids)
+	if not uid then return false, why end
+	inventoryChanged(player)
+	task.spawn(PlayerData.SaveNowAsync, player)
+	return true
+end
+
 -- the stall's prompt opens the shop on the client; the first visit also gives the free box, once ever
 local function claimFreeBox(player)
 	if not allowItems(player) then return end
@@ -799,6 +831,59 @@ local function useAccessoryPrompt(player, b)
 	openCaseRemote:FireClient(player, tostring(b:GetAttribute("Index")))
 end
 
+-- everything a bedroom copy needs once it's on a plot
+local function setupBedroom(b)
+	addFactorsLine(b)
+	setBedroomTier(b, Config.NORMAL_TIER)
+	b.CrawlHole.ScarePrompt.ActionText = "Crawl In"
+	b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b) end)
+	local accessoryPrompt = Instance.new("ProximityPrompt")
+	accessoryPrompt.Name = "AccessoryPrompt"
+	accessoryPrompt.ActionText = "Accessory"
+	accessoryPrompt.KeyboardKeyCode = Enum.KeyCode.F
+	accessoryPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+	accessoryPrompt.MaxActivationDistance = 10
+	accessoryPrompt.RequiresLineOfSight = false
+	accessoryPrompt.UIOffset = Vector2.new(0, 70)
+	accessoryPrompt.Triggered:Connect(function(p) useAccessoryPrompt(p, b) end)
+	accessoryPrompt.Parent = b.ShowcaseBase
+	b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
+end
+
+-- lift pads carry anyone, so visitors can tour upper floors too
+local function connectLift(pad, destination)
+	pad.LiftPrompt.Triggered:Connect(function(p)
+		if not allowItems(p) or not near(p, pad, pad.LiftPrompt.MaxActivationDistance) then return end
+		if p.Character then p.Character:PivotTo(destination.CFrame + Vector3.new(0, 4, 0)) end
+	end)
+end
+
+-- builds any floors this player has reached that aren't on their plot yet: a deck and six more bedrooms, numbered on from the last
+local function buildFloors(player)
+	local d = data(player)
+	local plot = plotOf[player]
+	if not d or not plot then return end
+	local bedrooms = plot.Contents.Bedrooms
+	local frame = PlotFrame.of(plot)
+	for floor = 2, PlotLayout.floorsVisible(Config.unlockedBedrooms(d.Rebirths)) do
+		if not plot.Contents:FindFirstChild("Floor" .. floor) then
+			local _, up, down = PlotFloors.build(plot.Contents, floor, frame)
+			connectLift(up, down)
+			connectLift(down, up)
+			local lifted = frame * CFrame.new(0, PlotLayout.floorHeight(floor), 0)
+			for _, source in ipairs(template.Bedrooms:GetChildren()) do
+				local copy = source:Clone()
+				local index = PlotLayout.bedroomIndex(floor, source:GetAttribute("Index"))
+				copy.Name = "Bedroom" .. index
+				copy:SetAttribute("Index", index)
+				PlotFrame.place(copy, lifted)
+				copy.Parent = bedrooms
+				setupBedroom(copy)
+			end
+		end
+	end
+end
+
 local function sendHome(player)
 	local plot = plotOf[player]
 	local char = player.Character
@@ -827,23 +912,8 @@ local function claim(player)
 		copy.Parent = plot.Contents
 	end
 	local bedrooms = plot.Contents.Bedrooms
-	for _, b in ipairs(bedrooms:GetChildren()) do
-		addFactorsLine(b)
-		setBedroomTier(b, Config.NORMAL_TIER)
-		b.CrawlHole.ScarePrompt.ActionText = "Crawl In"
-		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b) end)
-		local accessoryPrompt = Instance.new("ProximityPrompt")
-		accessoryPrompt.Name = "AccessoryPrompt"
-		accessoryPrompt.ActionText = "Accessory"
-		accessoryPrompt.KeyboardKeyCode = Enum.KeyCode.F
-		accessoryPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
-		accessoryPrompt.MaxActivationDistance = 10
-		accessoryPrompt.RequiresLineOfSight = false
-		accessoryPrompt.UIOffset = Vector2.new(0, 70)
-		accessoryPrompt.Triggered:Connect(function(p) useAccessoryPrompt(p, b) end)
-		accessoryPrompt.Parent = b.ShowcaseBase
-		b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
-	end
+	for _, b in ipairs(bedrooms:GetChildren()) do setupBedroom(b) end
+	buildFloors(player)
 	setLabel(plot.OwnerSign, player.DisplayName .. "'s Plot")
 	refreshLocks(player)
 	for key, uid in d.Placed do
@@ -874,16 +944,23 @@ local function rebirth(player, ...)
 	if not Remotes.checkArgs("Rebirth", ...) then return false, "Bad request" end
 	local d = data(player)
 	if not d then return false, "Still loading" end
-	if Config.unlockedBedrooms(d.Rebirths) >= Config.BEDROOM_COUNT then return false, "All bedrooms unlocked" end
-	local cost = Config.rebirthCost(d.Rebirths)
-	if d.Fear < cost then return false, "Need " .. Config.short(cost) .. " Fear" end
-	-- check and reset with no yield between, so parallel requests cannot rebirth twice for one price
-	d.Rebirths += 1
-	setFear(player, d, 0)
+	local rooms = Config.unlockedBedrooms(d.Rebirths)
+	-- no yields from the check to the change, so parallel requests cannot rebirth twice for one price
+	local ok, why, cost = Rebirth.apply(d, lastRebirth[player], os.clock())
+	if not ok then
+		if why == "maxed" then return false, "All bedrooms unlocked" end
+		if why == "cooldown" then return false, "Slow down!" end
+		return false, "Need " .. Config.short(cost) .. " Fear"
+	end
+	lastRebirth[player] = os.clock()
+	setFear(player, d, d.Fear)
 	publishRebirth(player, d)
+	buildFloors(player)
 	refreshLocks(player)
+	inventoryChanged(player)
+	local newFloor = PlotLayout.floorsVisible(Config.unlockedBedrooms(d.Rebirths)) > PlotLayout.floorsVisible(rooms)
 	task.spawn(PlayerData.SaveNowAsync, player)
-	return true, "Rebirth! New bedroom unlocked, x" .. Config.rebirthMult(d.Rebirths) .. " Fear"
+	return true, "Rebirth! New bedroom" .. (newFloor and " and a new floor" or "") .. " unlocked, x" .. Config.rebirthMult(d.Rebirths) .. " Fear"
 end
 
 local function onLoaded(profile)
@@ -938,6 +1015,7 @@ function GameService.Start()
 	remotes.ActivateTracker.OnServerInvoke = activateTracker
 	remotes.Dig.OnServerInvoke = digEgg
 	remotes.HatchOwnedEgg.OnServerInvoke = hatchOwnedEgg
+	remotes.FuseMonsters.OnServerInvoke = fuseMonsters
 	remotes.HatchEgg.OnServerInvoke = hatchEgg
 	remotes.OpenBox.OnServerInvoke = openBox
 	remotes.EquipAccessory.OnServerInvoke = equipAccessory
@@ -1002,6 +1080,7 @@ function GameService.Start()
 		lastManual[player] = nil
 		manualSessions[player] = nil
 		tutorialSent[player] = nil
+		lastRebirth[player] = nil
 		lastHatch[player] = nil
 		unclaim(player)
 	end)

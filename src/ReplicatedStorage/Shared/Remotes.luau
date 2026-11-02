@@ -47,7 +47,7 @@ Remotes.List = {
 	{name = "TrackerState", kind = "Event", dir = "s2c", args = {"state"}, status = "live", phase = 6},
 	{name = "HatchOwnedEgg", kind = "Function", dir = "c2s", args = {"id"}, status = "live", phase = 6},
 	{name = "HatchReveal", kind = "Event", dir = "s2c", args = {"state"}, status = "live", phase = 6},
-	{name = "FuseMonsters", kind = "Function", dir = "c2s", args = {"idList", "id"}, status = "planned", phase = 7},
+	{name = "FuseMonsters", kind = "Function", dir = "c2s", args = {"idList"}, status = "live", phase = 7},
 	{name = "SetSetting", kind = "Event", dir = "c2s", args = {"id", "boolean"}, status = "planned", phase = 8},
 }
 

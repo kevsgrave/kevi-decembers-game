@@ -183,6 +183,7 @@ local function validate(b: any, problems: {string})
 	num("rebirth.floorHeight", rebirth.floorHeight, 1)
 	price("rebirth.costBase", rebirth.costBase)
 	num("rebirth.costGrowth", rebirth.costGrowth, 1)
+	num("rebirth.cooldownSeconds", rebirth.cooldownSeconds, 0)
 	num("rebirth.multPerRebirth", rebirth.multPerRebirth, 0)
 	if type(rebirth.keepsRemainingFear) ~= "boolean" then bad("rebirth.keepsRemainingFear: expected true or false") end
 

@@ -66,7 +66,7 @@ local function showResult(r)
 	local tier = Config.TIER_BY_NAME[r.tier]
 	eggIcon.Visible = false
 	nameText.Text = r.kind
-	rarityText.Text = r.tier
+	rarityText.Text = r.tier .. (if r.mutation then " - " .. r.mutation .. "!" else "")
 	rarityText.TextColor3 = tier and tier.color or Color3.new(1, 1, 1)
 	infoText.Text = "👻 " .. Config.short(r.baseFear) .. " / scare, every " .. (tier and tier.interval or "?") .. "s. Added to your inventory"
 	tapText.Text = "Tap to close"
@@ -134,14 +134,25 @@ local function oddsLine(egg)
 	return table.concat(parts, ", ")
 end
 
+-- standard Fear eggs can mutate; the chances are the same for each and shown with the odds
+local function mutationLine()
+	local parts = {}
+	for _, m in ipairs(Config.Balance.mutations) do table.insert(parts, m.id .. " " .. tostring(m.rollChance) .. "%") end
+	return "Mutation chance: " .. table.concat(parts, ", ")
+end
+
 local function addRow(egg, position, free)
-	local f = Instance.new("Frame") f.Name = egg.id f.LayoutOrder = position f.Size = UDim2.new(1, -12, 0, 96) f.BackgroundColor3 = ROW f.Parent = list
+	local f = Instance.new("Frame") f.Name = egg.id f.LayoutOrder = position f.Size = UDim2.new(1, -12, 0, if free then 96 else 124) f.BackgroundColor3 = ROW f.Parent = list
 	corner(f, 12)
 	local top = label("Name", f, egg.name .. (free and " - FREE" or " - " .. Config.short(egg.price) .. " Fear"), Color3.fromRGB(255, 225, 110))
 	top.Position = UDim2.fromOffset(12, 6) top.Size = UDim2.new(1, -130, 0, 30)
 	local odds = label("Odds", f, oddsLine(egg))
 	odds.Position = UDim2.fromOffset(12, 38) odds.Size = UDim2.new(1, -130, 0, 48)
 	odds.TextWrapped = true
+	if not free then
+		local mutations = label("Mutations", f, mutationLine(), Color3.fromRGB(215, 205, 240))
+		mutations.Position = UDim2.fromOffset(12, 88) mutations.Size = UDim2.new(1, -130, 0, 30) mutations.TextWrapped = true
+	end
 	local hatchButton = button("Hatch", f, "Hatch", LIME)
 	hatchButton.AnchorPoint = Vector2.new(1, 0.5) hatchButton.Position = UDim2.new(1, -8, 0.5, 0) hatchButton.Size = UDim2.fromOffset(104, 60)
 	hatchButton.Activated:Connect(function()

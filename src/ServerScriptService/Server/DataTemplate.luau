@@ -22,6 +22,7 @@ export type Data = {
 	NextUid: number,
 	Hotbar: {string}, -- uids shown in the Roblox hotbar, in order: a view of Monsters, never the only copy
 	Index: {[string]: boolean}, -- species discovered
+	IndexSeen: {[string]: {BestSize: string?, Mutations: {[string]: boolean}}}, -- badges for the index
 	Boxes: {[string]: string}, -- uid -> accessory box id
 	Accessories: {[string]: string}, -- uid -> accessory id
 	CaseAccessories: {[string]: string}, -- bedroom index as a string -> accessory uid
@@ -47,6 +48,7 @@ function DataTemplate.new(): Data
 		NextUid = 1,
 		Hotbar = {},
 		Index = {},
+		IndexSeen = {},
 		Boxes = {},
 		Accessories = {},
 		CaseAccessories = {},
@@ -59,8 +61,8 @@ function DataTemplate.new(): Data
 	}
 end
 
-function DataTemplate.newMonster(kind: string, tier: string, baseFear: number, provenance: string): Monster
-	return {Kind = kind, Tier = tier, BaseFear = baseFear, Size = "Normal", Provenance = provenance}
+function DataTemplate.newMonster(kind: string, tier: string, baseFear: number, provenance: string, mutation: string?): Monster
+	return {Kind = kind, Tier = tier, BaseFear = baseFear, Size = "Normal", Mutation = mutation, Provenance = provenance}
 end
 
 local function deepCopy(value: any): any
