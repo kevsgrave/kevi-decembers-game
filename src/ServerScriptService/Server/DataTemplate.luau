@@ -1,7 +1,7 @@
 -- Player save shape, defaults and migrations (pattern from the LihFolk vault, "Saved Inventory End to End" 4.1)
 local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"))
 
-local CURRENT_VERSION = 2
+local CURRENT_VERSION = 3
 
 export type Monster = {
 	Kind: string, -- species id
@@ -10,6 +10,7 @@ export type Monster = {
 	Size: string, -- fusion size id
 	Mutation: string?, -- mutation id, absent when none
 	Provenance: string, -- egg, tutorial, dig, fusion, purchase or migrated
+	Favorited: boolean?, -- protected from fusion and selling
 }
 export type Data = {
 	SchemaVersion: number,
@@ -19,6 +20,7 @@ export type Data = {
 	Monsters: {[string]: Monster}, -- uid -> monster
 	Placed: {[string]: string}, -- bedroom index as a string -> uid
 	NextUid: number,
+	Hotbar: {string}, -- uids shown in the Roblox hotbar, in order: a view of Monsters, never the only copy
 	Index: {[string]: boolean}, -- species discovered
 	Boxes: {[string]: string}, -- uid -> accessory box id
 	Accessories: {[string]: string}, -- uid -> accessory id
@@ -42,6 +44,7 @@ function DataTemplate.new(): Data
 		Monsters = {},
 		Placed = {},
 		NextUid = 1,
+		Hotbar = {},
 		Index = {},
 		Boxes = {},
 		Accessories = {},
@@ -95,6 +98,10 @@ local migrations: {[number]: (data: {[string]: any}) -> ()} = {
 			end
 		end
 	end,
+	-- v3: the hotbar becomes saved data; prepare() fills it from the unplaced monsters
+	[3] = function(data)
+		data.Hotbar = {}
+	end,
 }
 
 local function finite(n: any): boolean
@@ -115,10 +122,39 @@ function DataTemplate.prepare(raw: any): (Data?, string?)
 	reconcile(raw, DataTemplate.new() :: any)
 	if not finite(raw.Fear) or not finite(raw.TotalFearEarned) or not finite(raw.Rebirths) or not finite(raw.NextUid) then return nil, "corrupt" end
 	raw.Fear = math.clamp(math.floor(raw.Fear), 0, Config.MAX_FEAR)
-	-- a placement pointing at a missing monster is dropped (the monster itself is never deleted)
-	for index, uid in raw.Placed do
-		if raw.Monsters[uid] == nil then raw.Placed[index] = nil end
+	-- a damaged monster row refuses the save rather than quietly losing the monster
+	for _, monster in raw.Monsters do
+		if type(monster) ~= "table" or type(monster.Kind) ~= "string" or type(monster.Tier) ~= "string" or not finite(monster.BaseFear) then
+			return nil, "corrupt"
+		end
 	end
+	-- a placement pointing at a missing monster, or a second placement of one monster, is dropped (the monster itself is never deleted)
+	local placed = {}
+	for index, uid in raw.Placed do
+		if raw.Monsters[uid] == nil or placed[uid] then
+			raw.Placed[index] = nil
+		else
+			placed[uid] = true
+		end
+	end
+	-- the hotbar keeps its order but only lists real, unplaced monsters, once each, then fills any free slots
+	local hotbar, listed = {}, {}
+	for _, uid in raw.Hotbar do
+		if raw.Monsters[uid] ~= nil and not placed[uid] and not listed[uid] and #hotbar < Config.HOTBAR_SLOTS then
+			table.insert(hotbar, uid)
+			listed[uid] = true
+		end
+	end
+	local spare = {}
+	for uid in raw.Monsters do
+		if not placed[uid] and not listed[uid] then table.insert(spare, uid) end
+	end
+	table.sort(spare)
+	for _, uid in spare do
+		if #hotbar >= Config.HOTBAR_SLOTS then break end
+		table.insert(hotbar, uid)
+	end
+	raw.Hotbar = hotbar
 	return raw :: Data, nil
 end
 
@@ -132,10 +168,13 @@ do
 	assert(bad == "corrupt", "NaN Fear must be refused")
 	local fixed = DataTemplate.prepare({Fear = 10, Monsters = {m1 = {Kind = "Jeff", Tier = "Rare"}}, Placed = {["1"] = "m1", ["2"] = "gone"}})
 	assert(fixed and fixed.Placed["1"] == "m1" and fixed.Placed["2"] == nil and fixed.Rebirths == 0, "reconcile and placement repair")
+	local _, damaged = DataTemplate.prepare({SchemaVersion = CURRENT_VERSION, Monsters = {m1 = "not a monster"}})
+	assert(damaged == "corrupt", "a damaged monster must refuse the save")
 	-- a v1 save keeps everything it had and gains the v2 fields
 	local v2 = DataTemplate.prepare({SchemaVersion = 1, Fear = 700, Rebirths = 2, NextUid = 3, Monsters = {m1 = {Kind = "Jeff", Tier = "Rare"}, m2 = {Kind = "Jeff", Tier = "Gone"}}, Placed = {["1"] = "m1"}})
-	assert(v2 and v2.SchemaVersion == 2 and v2.Fear == 700 and v2.TotalFearEarned == 700 and v2.Rebirths == 2 and v2.NextUid == 3, "v2 migration keeps progress")
+	assert(v2 and v2.SchemaVersion == CURRENT_VERSION and v2.Fear == 700 and v2.TotalFearEarned == 700 and v2.Rebirths == 2 and v2.NextUid == 3, "v2 migration keeps progress")
 	assert(v2.Monsters.m1.BaseFear == 500 and v2.Monsters.m1.Size == "Normal" and v2.Monsters.m1.Tier == "Rare" and v2.Monsters.m2.BaseFear == 0 and v2.Placed["1"] == "m1", "v2 migration keeps monsters")
+	assert(#v2.Hotbar == 1 and v2.Hotbar[1] == "m2", "v3 migration fills the hotbar with unplaced monsters only")
 	assert(v2.Index.Jeff == true and v2.Settings.ReducedScares == false and v2.Tutorial.Step == 0, "v2 migration adds the new fields")
 end
 

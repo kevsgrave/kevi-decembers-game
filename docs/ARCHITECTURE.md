@@ -1,6 +1,6 @@
 # Scare Sim architecture
 
-The place **SCARE THEM** is the working copy. `src/` holds its scripts as source.
+The place **SCARE THEM** is the working copy. `src/` holds its scripts as source. The design spec is in `docs/spec/`, and `docs/spec/OVERRIDES.md` lists the owner's decisions that override it.
 
 ## Source and import tree
 
@@ -21,7 +21,8 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Server/GuestKids.luau`, `RoomStyles.luau`, `PlotFrame.luau` | `...Server.*` | Guests, room looks, plot space |
 | `.../Shared/PlotLayout.luau` | `...Shared.PlotLayout` | Bedroom numbers, floors and heights |
 | `.../Server/PlotClaims.luau` | `...Server.PlotClaims` | Who owns which plot |
-| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau` | `ServerStorage.*` | Tests, command bar only |
+| `.../Server/Inventory.luau` | `...Server.Inventory` | Rules for owned monsters, hotbar and placing |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
 | not in the repo | `Workspace` (including `Stations`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
@@ -32,7 +33,7 @@ Startup order: `Main` requires `Config` (Balance is validated here, and a failur
 
 Edit `Balance.luau`. Wrap the value in `C()` if the design notes settle it, `P()` if it's a default anyone can change. An untagged number or boolean stops the game at startup.
 
-Used by the live game so far: starting Fear, Spooky Egg price and odds, rarities, bedroom tiers, manual base and cooldown, inventory cap, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: other eggs (5), accessories (5, 6), shop and trackers (6), mutations, fusion and floors (7).
+Used by the live game so far: starting Fear, Starter Egg price and odds, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: other eggs (5), accessories (5, 6), shop and trackers (6), mutations, fusion and floors (7), the 42-species roster (when original models exist).
 
 ## Server validation convention
 
@@ -58,10 +59,10 @@ Client requests with several steps carry a request id (the last `id` argument in
 |---|---|---|---|---|
 | Popup | Event | server to client | message | live |
 | Rebirth | Function | client to server | none | live |
-| PlaceMonster | Function | client to server | slotId, monsterUid | Phase 3 |
-| PickUpMonster | Function | client to server | slotId | Phase 3 |
-| SetHeldMonster | Event | client to server | monsterUid | Phase 3 |
-| InventoryChanged | Event | server to client | state | Phase 3 |
+| GetInventory | Function | client to server | none | live |
+| HoldMonster | Event | client to server | monsterUid | live |
+| FavoriteMonster | Event | client to server | monsterUid, on | live |
+| InventoryChanged | Event | server to client | state | live |
 | ManualScare | Function | client to server | slotId | Phase 4 |
 | RoomChanged | Event | server to client | state | Phase 4 |
 | HatchEgg | Function | client to server | eggId, requestId | Phase 5 |
@@ -77,7 +78,15 @@ Client requests with several steps carry a request id (the last `id` argument in
 | FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
-Plots are assigned by the server, so they need no remote. Hatching, placing and manual scares are ProximityPrompts today (server-side `Triggered`); their phases decide whether to keep the prompt or move to the remote above.
+Plots are assigned by the server, so they need no remote. Placing and picking up are ProximityPrompts (server-side `Triggered`), so they need none either. Hatching and manual scares are prompts today too; their phases decide whether to keep the prompt or move to the remote above.
+
+## Inventory and hotbar
+
+`Inventory.luau` holds the rules and works only on a player's save table, with no yields, so requests can't interleave. `GameService` checks who is asking and how far away they are, then calls it, then calls `inventoryChanged` to update the hotbar and the panel.
+
+- **Inventory:** `Monsters` in the save, up to `economy.inventoryCap`. The panel (`InventoryPanel.client.luau`) shows a copy from the server.
+- **Hotbar:** `Hotbar` in the save, up to `economy.hotbarSlots` uids, shown as Backpack Tools. Tools are only a view and are rebuilt from the save, so deleting one loses nothing.
+- **Placing:** the server reads the Tool actually in the player's hand. The client never names what to place.
 
 ## Plots and floors
 
@@ -87,7 +96,7 @@ Plots are **auto-assigned, by the owner's decision (overrides the master prompt'
 
 `MapBuilder.stations()` adds the rebirth station, fusing sign and ghosts without rebuilding the hub or plots. Re-running it replaces only what it made.
 
-## Saved data, schema version 2
+## Saved data, schema version 3
 
 Defined in `DataTemplate.luau`. Store `JumpscareRNG_PlayerData_v1`, key `U_<userId>`, or `STUDIO_<userId>` in Studio so tests never touch live saves. A newer or corrupt save is refused, never overwritten with defaults.
 
@@ -98,8 +107,9 @@ Defined in `DataTemplate.luau`. Store `JumpscareRNG_PlayerData_v1`, key `U_<user
 | `TotalFearEarned` | whole number | written |
 | `Rebirths` | number | yes |
 | `NextUid` | number, next `m<n>` | yes |
-| `Monsters` | uid to `{Kind, Tier, BaseFear, Size, Mutation?, Provenance}` | Kind and Tier; `BaseFear` paid from Phase 4 |
+| `Monsters` | uid to `{Kind, Tier, BaseFear, Size, Mutation?, Provenance, Favorited?}` | Kind, Tier, BaseFear, Favorited; Size and Mutation later |
 | `Placed` | bedroom index as a string to uid | yes |
+| `Hotbar` | list of uids | yes |
 | `Index` | species id to true | written |
 | `Boxes`, `Accessories`, `Eggs` | uid to definition id | Phases 5, 6 |
 | `CaseAccessories` | bedroom index to accessory uid | Phase 5 |
@@ -108,6 +118,10 @@ Defined in `DataTemplate.luau`. Store `JumpscareRNG_PlayerData_v1`, key `U_<user
 | `Settings` | `{ReducedScares, MusicVolume, SfxVolume}` | Phase 8 |
 | `Receipts` | purchase id to true | Phase 8 |
 
-**Migration v1 to v2** (runs when a save loads): keeps everything; each monster gets `BaseFear` at the middle of its rarity band, `Size = "Normal"` and `Provenance = "migrated"`; `TotalFearEarned` starts at the current Fear; `Index` is filled from owned monsters. Add new versions as new steps; never edit a released one.
+**Migration v1 to v2** (runs when a save loads): keeps everything; each monster gets `BaseFear` at the middle of its rarity band, `Size = "Normal"` and `Provenance = "migrated"`; `TotalFearEarned` starts at the current Fear; `Index` is filled from owned monsters.
+
+**Migration v2 to v3:** adds `Hotbar`, filled from unplaced monsters when the save loads.
+
+Add new versions as new steps; never edit a released one.
 
 Once a save is written as v2, a server still running v1 refuses it, so don't mix old and new builds in live servers.

@@ -9,17 +9,19 @@ local B, status = ConfigValidator.load(Balance)
 Config.Balance = B -- plain values, for the phases that use the rest of the tables
 Config.Status = status -- ["bedroomTiers.GOD.chance"] = {tag = "provisional", value = 0.001, note = "..."}
 
-local LIVE_EGG = "SpookyEgg"
+local LIVE_EGG = "StarterEgg"
 local eggsById = {}
 for _, egg in B.eggs do eggsById[egg.id] = egg end
 
 Config.EGG_COST = eggsById[LIVE_EGG].price
+Config.EGG_NAME = eggsById[LIVE_EGG].name
 Config.START_FEAR = B.start.fear
 Config.START_BEDROOMS = B.rebirth.startBedrooms
 Config.BEDROOM_COUNT = B.rebirth.bedroomsPerFloor
 Config.MANUAL_BASE = B.manual.baseFear
 Config.MANUAL_COOLDOWN = B.manual.cooldownSeconds
 Config.INVENTORY_CAP = B.economy.inventoryCap
+Config.HOTBAR_SLOTS = B.economy.hotbarSlots
 Config.MAX_FEAR = B.economy.maxFear
 Config.LIMITS = B.limits
 
@@ -78,7 +80,7 @@ function Config.pickBedroomTier(r)
 	return Config.NORMAL_TIER
 end
 
-function Config.rebirthCost(rebirths) return B.rebirth.costBase * (rebirths + 1) ^ B.rebirth.costExponent end
+function Config.rebirthCost(rebirths) return B.rebirth.costBase * B.rebirth.costGrowth ^ rebirths end
 function Config.rebirthMult(rebirths) return 1 + B.rebirth.multPerRebirth * rebirths end
 function Config.unlockedBedrooms(rebirths) return math.min(Config.BEDROOM_COUNT, Config.START_BEDROOMS + rebirths * B.rebirth.bedroomsPerRebirth) end
 
@@ -109,7 +111,7 @@ function Config.statusSummary()
 	return `{confirmed} confirmed, {provisional} provisional`
 end
 
-assert(Config.pickMonsterTier(0).name == "Common" and Config.pickMonsterTier(99.95).name == "SPOOKY", "monster roll order")
+assert(Config.pickMonsterTier(0).name == "Common" and Config.pickMonsterTier(99.5).name == "Epic", "monster roll order")
 assert(Config.pickBedroomTier(0).name == "GOD" and Config.pickBedroomTier(99).name == "Normal", "bedroom roll order")
 assert(Config.short(4999) == "4.9K" and Config.short(5000) == "5.0K", "short() must round down")
 

@@ -79,9 +79,11 @@ local function validate(b: any, problems: {string})
 	if type(b.start and b.start.monsterKind) ~= "string" then bad("start.monsterKind: expected a string") end
 	num("economy.maxFear", section("economy", b.economy).maxFear, 1, 2 ^ 53, true)
 	num("economy.inventoryCap", b.economy and b.economy.inventoryCap, 1, nil, true)
+	num("economy.hotbarSlots", b.economy and b.economy.hotbarSlots, 1, 9, true)
 	num("manual.baseFear", section("manual", b.manual).baseFear, 0, nil, true)
 	num("manual.cooldownSeconds", b.manual and b.manual.cooldownSeconds, 0)
 	num("manual.multPerRebirth", b.manual and b.manual.multPerRebirth, 0)
+	num("manual.maxTimingBonus", b.manual and b.manual.maxTimingBonus, 1)
 	for name, limit in section("limits", b.limits) do
 		num(`limits.{name}.capacity`, limit.capacity, 1)
 		num(`limits.{name}.refillPerSecond`, limit.refillPerSecond, 0.001)
@@ -96,6 +98,18 @@ local function validate(b: any, problems: {string})
 		if type(r.minFear) == "number" and type(r.maxFear) == "number" and r.minFear > r.maxFear then
 			bad(`rarities.{id}: minFear {r.minFear} is above maxFear {r.maxFear}`)
 		end
+	end
+
+	-- every species pays a fixed amount inside its rarity's band
+	for id, m in ids("monsters", b.monsters) do
+		if type(m.name) ~= "string" then bad(`monsters.{id}.name: expected a string`) end
+		local r = rarities[m.rarity]
+		if not r then
+			bad(`monsters.{id}: unknown rarity "{tostring(m.rarity)}"`)
+		elseif type(m.baseFear) ~= "number" or m.baseFear < r.minFear or m.baseFear > r.maxFear then
+			bad(`monsters.{id}.baseFear: {tostring(m.baseFear)} is outside the {m.rarity} band`)
+		end
+		num(`monsters.{id}.baseFear`, m.baseFear, 1, nil, true)
 	end
 
 	local tiers = ids("bedroomTiers", b.bedroomTiers)
@@ -162,7 +176,7 @@ local function validate(b: any, problems: {string})
 	num("rebirth.floorCap", rebirth.floorCap, 1, nil, true)
 	num("rebirth.floorHeight", rebirth.floorHeight, 1)
 	price("rebirth.costBase", rebirth.costBase)
-	num("rebirth.costExponent", rebirth.costExponent, 0)
+	num("rebirth.costGrowth", rebirth.costGrowth, 1)
 	num("rebirth.multPerRebirth", rebirth.multPerRebirth, 0)
 	if type(rebirth.keepsRemainingFear) ~= "boolean" then bad("rebirth.keepsRemainingFear: expected true or false") end
 
@@ -185,6 +199,8 @@ local function validate(b: any, problems: {string})
 
 	local shop = section("shop", b.shop)
 	num("shop.rotationSeconds", shop.rotationSeconds, 1)
+	num("shop.offersMin", shop.offersMin, 1, shop.offersMax, true)
+	num("shop.offersMax", shop.offersMax, 1, nil, true)
 	local shopItems = ids("shop.items", shop.items)
 	for id, item in shopItems do
 		if item.kind == "box" then
@@ -194,11 +210,7 @@ local function validate(b: any, problems: {string})
 		end
 		price(`shop.items.{id}.price`, item.price)
 		num(`shop.items.{id}.appearChance`, item.appearChance, 0, 100)
-		num(`shop.items.{id}.stockMin`, item.stockMin, 0, nil, true)
-		num(`shop.items.{id}.stockMax`, item.stockMax, 0, nil, true)
-		if type(item.stockMin) == "number" and type(item.stockMax) == "number" and item.stockMin > item.stockMax then
-			bad(`shop.items.{id}: stockMin {item.stockMin} is above stockMax {item.stockMax}`)
-		end
+		num(`shop.items.{id}.stock`, item.stock, 1, nil, true)
 	end
 
 	local trackers = section("trackers", b.trackers)

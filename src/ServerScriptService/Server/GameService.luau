@@ -17,6 +17,7 @@ local GuestKids = require(script.Parent.GuestKids)
 local RoomStyles = require(script.Parent.RoomStyles)
 local PlotFrame = require(script.Parent.PlotFrame)
 local PlotClaims = require(script.Parent.PlotClaims)
+local Inventory = require(script.Parent.Inventory)
 
 local GameService = {}
 
@@ -25,11 +26,12 @@ local hub = workspace:WaitForChild("Hub")
 local template = ServerStorage:WaitForChild("PlotTemplate")
 
 local rng = Random.new()
-local popupRemote, rebirthRemote -- created in Start, from one list
+local popupRemote, rebirthRemote, inventoryRemote -- created in Start, from one list
 
 local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
 local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
 local allowRebirth = RateLimiter.new(Config.LIMITS.rebirth.capacity, Config.LIMITS.rebirth.refillPerSecond)
+local allowInventory = RateLimiter.new(Config.LIMITS.inventory.capacity, Config.LIMITS.inventory.refillPerSecond)
 
 local claims = PlotClaims.new()
 local plotOf = claims.plotOf -- [player] = plot Model
@@ -178,42 +180,52 @@ local function showInfo(player, bedroom)
 	if not tier then
 		info.MonsterName.Text = "Empty"
 		info.MonsterName.TextColor3 = Color3.new(1, 1, 1)
-		info.Cash.Text = "Hatch an egg!"
+		info.Cash.Text = "Hold a monster and press E"
 		return
 	end
-	local avg = (tier.min + tier.max) / 2 * bedroom:GetAttribute("Mult") * Config.rebirthMult(d.Rebirths)
-	info.MonsterName.Text = tier.name .. " " .. monster.Kind
+	local perScare = monster.BaseFear * bedroom:GetAttribute("Mult") * Config.rebirthMult(d.Rebirths)
+	info.MonsterName.Text = monster.Kind .. " - " .. tier.name
 	info.MonsterName.TextColor3 = tier.color
-	info.Cash.Text = "👻 " .. Config.short(avg) .. " / scare"
+	info.Cash.Text = "👻 " .. Config.short(perScare) .. " / scare, every " .. tier.interval .. "s"
 end
 
--- inventory lives in the save; Tools in the Backpack are only the "holding" view of unplaced monsters
+-- inventory lives in the save; Tools in the Backpack are only the hotbar's view of it, rebuilt from the saved list
 local function syncTools(player)
 	local d = data(player)
 	local backpack = player:FindFirstChildOfClass("Backpack")
 	if not d or not backpack then return end
-	local placed = {}
-	for _, uid in d.Placed do placed[uid] = true end
+	local wanted = {}
+	for _, uid in d.Hotbar do wanted[uid] = true end
 	local have = {}
 	for _, holder in ipairs({backpack, player.Character}) do
 		for _, tool in ipairs(holder and holder:GetChildren() or {}) do
 			local uid = tool:IsA("Tool") and tool:GetAttribute("Uid")
 			if uid then
-				if d.Monsters[uid] == nil or placed[uid] or have[uid] then tool:Destroy() else have[uid] = true end
+				if not wanted[uid] or have[uid] then tool:Destroy() else have[uid] = tool end
 			end
 		end
 	end
-	for uid, monster in d.Monsters do
-		if not placed[uid] and not have[uid] then
+	for _, uid in d.Hotbar do
+		if not have[uid] then
+			local monster = d.Monsters[uid]
 			local tool = Instance.new("Tool")
-			tool.Name = monster.Kind
+			tool.Name = monster.Tier .. " " .. monster.Kind
 			tool.CanBeDropped = false
 			JeffRig.buildMini(tool, 0.3)
-			tool.ToolTip = monster.Tier .. " - place in a display case"
+			tool.ToolTip = "👻 " .. Config.short(monster.BaseFear) .. " / scare. Press E at your display case"
 			tool:SetAttribute("Uid", uid)
 			tool.Parent = backpack
+			have[uid] = tool
 		end
 	end
+	return have
+end
+
+-- everything that changes the inventory ends here: the hotbar view and the client's panel both follow the save
+local function inventoryChanged(player)
+	syncTools(player)
+	local d = data(player)
+	if d then inventoryRemote:FireClient(player, Inventory.snapshot(d)) end
 end
 
 local function refreshLocks(player)
@@ -260,7 +272,7 @@ local function runShowcase(player, bedroom, uid)
 		roomJeff:SetAttribute("ScareCount", (roomJeff:GetAttribute("ScareCount") or 0) + 1)
 		task.wait(tl.pop)
 		if not still() then break end
-		pay(player, rng:NextInteger(tier.min, tier.max) * bedroom:GetAttribute("Mult"))
+		pay(player, d.Monsters[uid].BaseFear * bedroom:GetAttribute("Mult"))
 		playScare(bedroom)
 		setBedroomTier(bedroom, Config.pickBedroomTier(rng:NextNumber(0, 100)))
 		showInfo(player, bedroom)
@@ -274,9 +286,7 @@ local function hatch(player)
 	local d = data(player)
 	local egg = hub.Egg
 	if not d or not near(player, egg, egg.HatchPrompt.MaxActivationDistance) then return end
-	local count = 0
-	for _ in d.Monsters do count += 1 end
-	if count >= Config.INVENTORY_CAP then
+	if Inventory.isFull(d) then
 		popup(player, "Your inventory is full (" .. Config.INVENTORY_CAP .. ")")
 		return
 	end
@@ -286,48 +296,68 @@ local function hatch(player)
 	end
 	-- no yields from the checks above to here, so a double request cannot spend once and hatch twice
 	local tier = Config.pickMonsterTier(rng:NextNumber(0, 100))
-	local uid = "m" .. d.NextUid
-	d.NextUid += 1
-	d.Monsters[uid] = DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, rng:NextInteger(tier.min, tier.max), "egg")
-	d.Index[Config.MONSTER_KIND] = true
+	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, rng:NextInteger(tier.min, tier.max), "egg"))
 	setFear(player, d, d.Fear - Config.EGG_COST)
-	syncTools(player)
-	popup(player, "You hatched a " .. tier.name .. " " .. Config.MONSTER_KIND .. "! Place him in a display case.")
+	inventoryChanged(player)
+	popup(player, "You hatched a " .. tier.name .. " " .. Config.MONSTER_KIND .. "! Hold it and press E at a display case.")
 end
 
--- display case prompt: place the held (or first unplaced) monster, or pick the current one back up
+-- display case prompt: place the monster you're holding, or pick the current one back up
+local PLACE_MESSAGES = {
+	locked = "Rebirth to unlock this room",
+	occupied = "This case already has a monster",
+	missing = "Hold a monster first: pick one from your hotbar or inventory",
+	deployed = "That monster is already in another room",
+}
+
 local function useShowcase(player, b)
 	if not allowShowcase(player) or not ownedOrWarn(player, b) then return end
 	local d = data(player)
+	if not d or not near(player, b.ShowcaseGlass, b.ShowcaseGlass.PlacePrompt.MaxActivationDistance) then return end
 	local index = b:GetAttribute("Index")
-	if not d or index > Config.unlockedBedrooms(d.Rebirths) or not near(player, b.ShowcaseGlass, b.ShowcaseGlass.PlacePrompt.MaxActivationDistance) then return end
-	local key = tostring(index)
 	local prompt = b.ShowcaseGlass.PlacePrompt
-	if d.Placed[key] then
-		d.Placed[key] = nil
+	if d.Placed[tostring(index)] then
+		Inventory.pickUp(d, index)
 		local m = b:FindFirstChild("Monster") if m then m:Destroy() end
 		prompt.ActionText = "Place Monster"
-		syncTools(player)
+		inventoryChanged(player)
 		showInfo(player, b)
 		return
 	end
-	local placed = {}
-	for _, uid in d.Placed do placed[uid] = true end
 	local held = player.Character and player.Character:FindFirstChildOfClass("Tool")
 	local uid = held and held:GetAttribute("Uid")
-	if not (uid and d.Monsters[uid] and not placed[uid]) then
-		uid = nil
-		for id in d.Monsters do
-			if not placed[id] then uid = id break end
-		end
-	end
-	if not uid then
-		popup(player, "Hatch an egg first!")
+	local placed, why = Inventory.place(d, index, uid, Config.unlockedBedrooms(d.Rebirths))
+	if not placed then
+		popup(player, PLACE_MESSAGES[why])
 		return
 	end
-	d.Placed[key] = uid
-	syncTools(player)
+	inventoryChanged(player)
 	task.spawn(runShowcase, player, b, uid)
+end
+
+-- put a monster from the inventory panel on the hotbar and in the player's hand
+local function holdMonster(player, ...)
+	if not allowInventory(player) or not Remotes.checkArgs("HoldMonster", ...) then return end
+	local d = data(player)
+	local uid = ...
+	if not d or not Inventory.putOnHotbar(d, uid) then return end
+	inventoryChanged(player)
+	local tools = syncTools(player)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if tools and tools[uid] and humanoid and humanoid.Health > 0 then humanoid:EquipTool(tools[uid]) end
+end
+
+local function favoriteMonster(player, ...)
+	if not allowInventory(player) or not Remotes.checkArgs("FavoriteMonster", ...) then return end
+	local d = data(player)
+	local uid, on = ...
+	if d and Inventory.setFavorite(d, uid, on) then inventoryChanged(player) end
+end
+
+local function getInventory(player, ...)
+	if not allowInventory(player) or not Remotes.checkArgs("GetInventory", ...) then return nil end
+	local d = data(player)
+	return d and Inventory.snapshot(d)
 end
 
 local function manualScare(player, b)
@@ -422,7 +452,7 @@ local function onLoaded(profile)
 	local rb = Instance.new("IntValue") rb.Name = "Rebirths" rb.Parent = ls
 	ls.Parent = player
 	publishRebirth(player, d)
-	syncTools(player)
+	inventoryChanged(player)
 	player.CharacterAdded:Connect(function()
 		task.defer(syncTools, player)
 		task.defer(sendHome, player)
@@ -436,12 +466,17 @@ function GameService.Start()
 	local remotes = Remotes.createLive(Net)
 	popupRemote = remotes.Popup
 	rebirthRemote = remotes.Rebirth
+	inventoryRemote = remotes.InventoryChanged
 	rebirthRemote.OnServerInvoke = rebirth
+	remotes.GetInventory.OnServerInvoke = getInventory
+	remotes.HoldMonster.OnServerEvent:Connect(holdMonster)
+	remotes.FavoriteMonster.OnServerEvent:Connect(favoriteMonster)
 
 	-- the hub egg: odds generated from Config, shown before anyone spends
 	local egg = hub.Egg
 	egg.HatchPrompt.Triggered:Connect(hatch)
-	egg.BillboardGui.Text.Text = "Spooky Egg - " .. Config.EGG_COST .. " Fear"
+	egg.BillboardGui.Text.Text = Config.EGG_NAME .. " - " .. Config.EGG_COST .. " Fear"
+	egg.HatchPrompt.ObjectText = Config.EGG_NAME
 	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")
 	if odds then odds.Text.Text = "Odds\n" .. Config.oddsText() end
 	for _, plot in ipairs(plotsFolder:GetChildren()) do

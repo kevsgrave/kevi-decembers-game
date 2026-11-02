@@ -11,19 +11,21 @@ return {
 	},
 
 	start = {
-		fear = P(250, "exactly one Spooky Egg"),
-		monsterKind = P("Jeff", "only hatchable monster until the roster exists; name needs an owner decision, see docs/phase1/AUDIT.md"),
+		fear = P(500, "exactly one Starter Egg, until the tutorial voucher exists"),
+		monsterKind = P("Jeff", "stand-in until original models exist, see docs/spec/OVERRIDES.md"),
 	},
 
 	economy = {
 		maxFear = P(1e15, "well below 2^53 so Fear stays an exact integer"),
-		inventoryCap = P(50),
+		inventoryCap = P(250),
+		hotbarSlots = P(9, "the number keys; the rest of the inventory is in the panel"),
 	},
 
 	manual = {
 		baseFear = C(100),
-		cooldownSeconds = P(3),
-		multPerRebirth = P(0.5, "master prompt wants its own curve; same value as automatic scares for now"),
+		cooldownSeconds = P(8),
+		multPerRebirth = P(0.25, "same as automatic scares"),
+		maxTimingBonus = P(1.2, "for the timing mini-game"),
 	},
 
 	-- server rate limits for prompts and remotes
@@ -31,6 +33,7 @@ return {
 		hatch = {capacity = P(3), refillPerSecond = P(1.5)},
 		showcase = {capacity = P(4), refillPerSecond = P(2)},
 		rebirth = {capacity = P(2), refillPerSecond = P(0.5)},
+		inventory = {capacity = P(8), refillPerSecond = P(4)},
 	},
 
 	-- least rare first; from Tiers For Monsters. Secret has no numbers in the notes.
@@ -41,7 +44,7 @@ return {
 		{id = "Legendary", minFear = C(800), maxFear = C(2500), scareSeconds = C(5)},
 		{id = "Mythic", minFear = C(1200), maxFear = C(5000), scareSeconds = C(5)},
 		{id = "SPOOKY", minFear = C(8000), maxFear = C(15000), scareSeconds = C(3.5)},
-		{id = "Secret", minFear = P(15000), maxFear = P(30000), scareSeconds = P(3)},
+		{id = "Secret", minFear = P(20000), maxFear = P(35000), scareSeconds = P(3)},
 	},
 
 	-- rolled top to bottom, in percent, totals 100. From Bedroom Tiers.
@@ -54,46 +57,100 @@ return {
 		{id = "Normal", chance = P(73.949, "the rest of the %, so it moves if the GOD reading changes"), mult = C(1)},
 	},
 
+	-- the design package's 42 original species. Data only until original models exist: hatches stay Jeff until then.
+	monsters = {
+		{id = "sock-goblin", name = "Sock Goblin", rarity = "Common", baseFear = P(50), concept = "Tiny stitched gremlin with runaway socks"},
+		{id = "dust-bopper", name = "Dust Bopper", rarity = "Common", baseFear = P(85), concept = "Dustball creature with jelly legs"},
+		{id = "boo-balloon", name = "Boo Balloon", rarity = "Common", baseFear = P(125), concept = "Floating balloon ghost with painted face"},
+		{id = "puddle-imp", name = "Puddle Imp", rarity = "Common", baseFear = P(165), concept = "Rain puddle imp in boots"},
+		{id = "pumpkin-peeker", name = "Pumpkin Peeker", rarity = "Common", baseFear = P(210), concept = "Miniature animated jack-o-lantern"},
+		{id = "curtain-crawler", name = "Curtain Crawler", rarity = "Common", baseFear = P(270), concept = "Friendly six-armed cloth creature"},
+		{id = "wobble-wisp", name = "Wobble Wisp", rarity = "Common", baseFear = P(335), concept = "Neon flame orb with drowsy eyes"},
+		{id = "mothling", name = "Mothling", rarity = "Common", baseFear = P(390), concept = "Big moth with moon wings and antennae"},
+		{id = "grinling-hound", name = "Grinling Hound", rarity = "Rare", baseFear = P(225), concept = "Patchwork hound with a crooked lantern smile"},
+		{id = "lantern-jaw", name = "Lantern Jaw", rarity = "Rare", baseFear = P(300), concept = "Walking lantern with chatterbox teeth"},
+		{id = "shiver-jack", name = "Shiver Jack", rarity = "Rare", baseFear = P(365), concept = "Tall scarf-wearing scarecrow prankster"},
+		{id = "clockwork-clown", name = "Clockwork Clown", rarity = "Rare", baseFear = P(440), concept = "Wind-up toy clown with square spring limbs"},
+		{id = "blanket-mimic", name = "Blanket Mimic", rarity = "Rare", baseFear = P(525), concept = "Blanket with bright glowing button eyes"},
+		{id = "paper-shadow", name = "Paper Shadow", rarity = "Rare", baseFear = P(615), concept = "Origami silhouette with impossible folds"},
+		{id = "mossy-howler", name = "Mossy Howler", rarity = "Rare", baseFear = P(700), concept = "Forest goblin with a bell collar"},
+		{id = "sneakwood", name = "Sneakwood", rarity = "Rare", baseFear = P(790), concept = "Root creature with wooden mask"},
+		{id = "plush-prowler", name = "Plush Prowler", rarity = "Epic", baseFear = P(450), concept = "Round-shouldered plush beast with mismatched colors"},
+		{id = "dream-snatcher", name = "Dream Snatcher", rarity = "Epic", baseFear = P(590), concept = "Sleepy star-cat with a tiny crescent tail"},
+		{id = "goggle-gremlin", name = "Goggle Gremlin", rarity = "Epic", baseFear = P(755), concept = "Triple-eyed mechanical goblin with copper goggles"},
+		{id = "lullaby-lurker", name = "Lullaby Lurker", rarity = "Epic", baseFear = P(910), concept = "Musical marionette with a bell-shaped hood"},
+		{id = "mirror-minnow", name = "Mirror Minnow", rarity = "Epic", baseFear = P(1090), concept = "Floating aquarium-fish ghost with mirror scales"},
+		{id = "fuzzy-fury", name = "Fuzzy Fury", rarity = "Epic", baseFear = P(1270), concept = "Huge puffy monster with tiny feet and colorful horns"},
+		{id = "hallway-marionette", name = "Hallway Marionette", rarity = "Epic", baseFear = P(1480), concept = "Porcelain hallway puppet on glowing strings"},
+		{id = "velvet-beast", name = "Velvet Beast", rarity = "Legendary", baseFear = P(850), concept = "Horned velvet guardian with embroidered moon patches"},
+		{id = "moonbite-mutt", name = "Moonbite Mutt", rarity = "Legendary", baseFear = P(1125), concept = "Spectral long-legged wolf with crystal collar"},
+		{id = "jester-of-static", name = "Jester of Static", rarity = "Legendary", baseFear = P(1460), concept = "Television-faced royal jester"},
+		{id = "crowned-candle", name = "Crowned Candle", rarity = "Legendary", baseFear = P(1800), concept = "Wax creature wearing a floating crown"},
+		{id = "nightmare-astronaut", name = "Nightmare Astronaut", rarity = "Legendary", baseFear = P(2150), concept = "Patchwork astronaut filled with stars"},
+		{id = "static-phantom", name = "Static Phantom", rarity = "Legendary", baseFear = P(2475), concept = "Ribbonlike phantom of crackling purple static"},
+		{id = "wardrobe-king", name = "The Wardrobe King", rarity = "Mythic", baseFear = P(1400), concept = "Regal cedar wardrobe with many little doors"},
+		{id = "starved-clock", name = "The Starved Clock", rarity = "Mythic", baseFear = P(2050), concept = "Animated grandfather clock made of floating numbers"},
+		{id = "madame-eclipse", name = "Madame Eclipse", rarity = "Mythic", baseFear = P(2950), concept = "Masked celestial showwoman in crescent cape"},
+		{id = "dread-leviathan", name = "Dread Leviathan", rarity = "Mythic", baseFear = P(3850), concept = "Long ribbon-serpent made of storm clouds"},
+		{id = "pale-conductor", name = "The Pale Conductor", rarity = "Mythic", baseFear = P(4900), concept = "Ghostly orchestra conductor with spiderlike baton"},
+		{id = "hollow-monarch", name = "The Hollow Monarch", rarity = "SPOOKY", baseFear = P(8200), concept = "Towering hollow porcelain monarch with orbiting masks"},
+		{id = "night-parade", name = "The Night Parade", rarity = "SPOOKY", baseFear = P(9700), concept = "One collectible monster: a tiny ghost marching band"},
+		{id = "mourning-bell", name = "The Mourning Bell", rarity = "SPOOKY", baseFear = P(11200), concept = "Floating gothic bell with cartoon eye"},
+		{id = "candle-eater", name = "The Candle Eater", rarity = "SPOOKY", baseFear = P(13200), concept = "Lantern-winged moth giant with a hollow mask"},
+		{id = "inkwell-witch", name = "The Inkwell Witch", rarity = "SPOOKY", baseFear = P(14850), concept = "Spinning ink spirit in paper dress"},
+		{id = "zero-hour", name = "Zero Hour", rarity = "Secret", baseFear = P(21000), concept = "Transparent clock-shaped anomaly, no copyrighted analogues"},
+		{id = "unseen-host", name = "The Unseen Host", rarity = "Secret", baseFear = P(26500), concept = "Empty tuxedo with floating invitation cards"},
+		{id = "last-lantern", name = "The Last Lantern", rarity = "Secret", baseFear = P(34000), concept = "Ancient living lighthouse lantern with constellation eyes"},
+	},
+
 	-- odds in percent, each egg totals 100. Only the tutorial egg's odds come from the notes.
 	-- live = false: defined, not offered in the game yet.
 	eggs = {
 		{
-			id = "SpookyEgg", name = "Spooky Egg", live = C(true), source = "fear", price = P(250),
-			odds = {Common = P(60), Rare = P(25), Epic = P(10), Legendary = P(4), Mythic = P(0.9), SPOOKY = P(0.1)},
+			id = "StarterEgg", name = "Starter Egg", live = C(true), source = "fear", price = P(500),
+			odds = {Common = P(78), Rare = P(21), Epic = P(1)},
 		},
 		{
-			id = "MoonlitEgg", name = "Moonlit Egg", live = P(false), source = "fear", price = P(2500),
-			odds = {Common = P(25), Rare = P(40), Epic = P(25), Legendary = P(8), Mythic = P(1.8), SPOOKY = P(0.2)},
+			id = "CreepyEgg", name = "Creepy Egg", live = P(false), source = "fear", price = P(6000),
+			odds = {Rare = P(65), Epic = P(30), Legendary = P(5)},
 		},
 		{
-			id = "GraveyardEgg", name = "Graveyard Egg", live = P(false), source = "fear", price = P(25000),
-			odds = {Rare = P(30), Epic = P(40), Legendary = P(22), Mythic = P(7), SPOOKY = P(0.9), Secret = P(0.1)},
+			id = "MoonEgg", name = "Moon Egg", live = P(false), source = "fear", price = P(60000),
+			odds = {Epic = P(65), Legendary = P(30), Mythic = P(5)},
 		},
 		{
-			id = "TutorialEgg", name = "Tutorial Egg", live = P(false), source = "tutorial", price = P(0, "free so the tutorial can't soft-lock"),
+			id = "HauntedEgg", name = "Haunted Egg", live = P(false), source = "fear", price = P(600000),
+			odds = {Legendary = P(65), Mythic = P(33), SPOOKY = P(2)},
+		},
+		{
+			id = "NightmareEgg", name = "Nightmare Egg", live = P(false), source = "fear", price = P(6000000),
+			odds = {Mythic = P(85), SPOOKY = P(14.9), Secret = P(0.1)},
+		},
+		{
+			id = "TutorialEgg", name = "Tutorial Promise Egg", live = P(false), source = "tutorial", price = P(0, "one-use voucher, so the tutorial can't soft-lock"),
 			odds = {Epic = C(80), Legendary = C(20)},
 		},
 		{
-			id = "TrackerEgg", name = "Secret Egg", live = P(false), source = "dig", price = P(0, "paid for by the tracker"),
-			odds = {Legendary = P(50), Mythic = P(30), SPOOKY = P(15), Secret = P(5)},
+			id = "BuriedMoonEgg", name = "Buried Moon Egg", live = P(false), source = "dig", price = P(0, "earned with a tracker"),
+			odds = {Mythic = P(85), SPOOKY = P(14), Secret = P(1)},
 		},
 	},
 
 	-- names from the notes; numbers are not. rollChance is percent per hatch, disclosed with the egg's odds.
 	mutations = {
-		{id = "Golden", mult = P(1.5), rollChance = P(1)},
-		{id = "Haunted", mult = P(2), rollChance = P(0.5)},
-		{id = "Creepy", mult = P(2.5), rollChance = P(0.25)},
-		{id = "Cursed", mult = P(3), rollChance = P(0.1)},
-		{id = "UnHoly", mult = P(5), rollChance = P(0.01)},
+		{id = "Golden", mult = P(1.2), rollChance = P(2)},
+		{id = "Haunted", mult = P(1.4), rollChance = P(0.9)},
+		{id = "Creepy", mult = P(1.65), rollChance = P(0.35)},
+		{id = "Cursed", mult = P(2), rollChance = P(0.13)},
+		{id = "UnHoly", mult = P(2.5), rollChance = P(0.02)},
 	},
 
 	fusion = {
 		-- smallest first; modelScale stays subtle, as the notes ask
 		sizes = {
 			{id = "Normal", mult = P(1), modelScale = P(1)},
-			{id = "Large", mult = P(1.5), modelScale = P(1.05)},
-			{id = "Mega", mult = P(2.25), modelScale = P(1.1)},
+			{id = "Large", mult = P(1.5), modelScale = P(1.07)},
+			{id = "Mega", mult = P(2.25), modelScale = P(1.13)},
 			{id = "MASSIVE", mult = P(3.5), modelScale = P(1.2)},
 		},
 		recipes = {
@@ -110,41 +167,50 @@ return {
 		bedroomsPerRebirth = C(1),
 		floorCap = P(3),
 		floorHeight = P(32, "studs between floors, clear of the gable roofs"),
-		costBase = P(5000, "cost = costBase * (rebirths + 1) ^ costExponent"),
-		costExponent = P(2),
-		multPerRebirth = P(0.5, "multiplier = 1 + multPerRebirth * rebirths"),
-		keepsRemainingFear = P(true, "master prompt's rule; the live game still wipes Fear until Phase 7"),
+		costBase = P(50000, "cost = costBase * costGrowth ^ rebirths"),
+		costGrowth = P(3),
+		multPerRebirth = P(0.25, "multiplier = 1 + multPerRebirth * rebirths"),
+		keepsRemainingFear = P(true, "owner's decision; the live game still wipes Fear until the rebirth phase"),
 	},
 
 	accessories = {
 		slotsPerCase = P(1),
 		boxes = {{id = "RareBox"}, {id = "EpicBox"}, {id = "LegendaryBox"}, {id = "SecretBox"}},
-		-- weight is percent within its box, each box totals 100
+		-- weight is percent within its box, each box totals 100: equal chances, shown to the player
 		items = {
-			{id = "CandleCharm", box = "RareBox", mult = P(1.1), weight = P(70)},
-			{id = "SpiderBrooch", box = "RareBox", mult = P(1.15), weight = P(30)},
-			{id = "BatWings", box = "EpicBox", mult = P(1.25), weight = P(70)},
-			{id = "GhostLantern", box = "EpicBox", mult = P(1.35), weight = P(30)},
-			{id = "PumpkinCrown", box = "LegendaryBox", mult = P(1.5), weight = P(70)},
-			{id = "WitchStaff", box = "LegendaryBox", mult = P(1.75), weight = P(30)},
-			{id = "MoonRelic", box = "SecretBox", mult = P(2.5), weight = P(100)},
+			{id = "BoneCharm", box = "RareBox", mult = P(1.1), weight = P(25)},
+			{id = "SqueakyBat", box = "RareBox", mult = P(1.15), weight = P(25)},
+			{id = "CobwebBanner", box = "RareBox", mult = P(1.2), weight = P(25)},
+			{id = "LanternTag", box = "RareBox", mult = P(1.25), weight = P(25)},
+			{id = "EnchantedChime", box = "EpicBox", mult = P(1.3), weight = P(25)},
+			{id = "GhostCamera", box = "EpicBox", mult = P(1.35), weight = P(25)},
+			{id = "MoonMirror", box = "EpicBox", mult = P(1.4), weight = P(25)},
+			{id = "TrickLantern", box = "EpicBox", mult = P(1.5), weight = P(25)},
+			{id = "ClockworkHalo", box = "LegendaryBox", mult = P(1.6), weight = P(100 / 3)},
+			{id = "PhantomProjector", box = "LegendaryBox", mult = P(1.7), weight = P(100 / 3)},
+			{id = "ShadowOrgan", box = "LegendaryBox", mult = P(1.85), weight = P(100 / 3)},
+			{id = "RiftHourglass", box = "SecretBox", mult = P(2), weight = P(100 / 3)},
+			{id = "HeartOfMidnight", box = "SecretBox", mult = P(2.2), weight = P(100 / 3)},
+			{id = "LivingMoon", box = "SecretBox", mult = P(2.4), weight = P(100 / 3)},
 		},
 	},
 
 	shop = {
 		rotationSeconds = C(300),
-		-- appearChance is percent per rotation; stock is drawn between stockMin and stockMax
+		offersMin = P(3),
+		offersMax = P(5),
+		-- appearChance is percent per shelf check; stock is each player's own allotment per rotation
 		items = {
-			{id = "RareBox", kind = "box", price = P(1000), appearChance = P(100), stockMin = P(3), stockMax = P(6)},
-			{id = "EpicBox", kind = "box", price = P(10000), appearChance = P(50), stockMin = P(2), stockMax = P(4)},
-			{id = "LegendaryBox", kind = "box", price = P(100000), appearChance = P(15), stockMin = P(1), stockMax = P(2)},
-			{id = "SecretBox", kind = "box", price = P(1000000), appearChance = P(3), stockMin = P(1), stockMax = P(1)},
-			{id = "Tracker", kind = "tracker", price = P(250000), appearChance = P(2), stockMin = P(1), stockMax = P(1)},
+			{id = "RareBox", kind = "box", price = P(2500), appearChance = P(100), stock = P(3)},
+			{id = "EpicBox", kind = "box", price = P(30000), appearChance = P(60), stock = P(2)},
+			{id = "LegendaryBox", kind = "box", price = P(350000), appearChance = P(20), stock = P(1)},
+			{id = "SecretBox", kind = "box", price = P(3000000), appearChance = P(3), stock = P(1)},
+			{id = "Tracker", kind = "tracker", price = P(800000), appearChance = P(2), stock = P(1)},
 		},
 	},
 
 	trackers = {
-		rewardEgg = "TrackerEgg",
+		rewardEgg = "BuriedMoonEgg",
 		digExpireSeconds = P(900),
 		restoreOnExpire = P(true, "an abandoned dig gives the tracker back, so paid items are never lost"),
 	},

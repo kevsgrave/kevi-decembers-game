@@ -42,6 +42,15 @@ return function(balance: any?, validator: any?, remotes: any?): string
 		check(`rarity {id} is {want[1]}-{want[2]} every {want[3]}s`, r.minFear == want[1] and r.maxFear == want[2] and r.scareSeconds == want[3])
 	end
 	check("seven rarities", #plain.rarities == 7)
+	check("42 species in the roster", #plain.monsters == 42)
+	local perRarity = {}
+	for _, m in plain.monsters do perRarity[m.rarity] = (perRarity[m.rarity] or 0) + 1 end
+	check("every rarity has species", perRarity.Common == 8 and perRarity.Rare == 8 and perRarity.Epic == 7 and perRarity.Legendary == 6 and perRarity.Mythic == 5 and perRarity.SPOOKY == 5 and perRarity.Secret == 3)
+	check("first rebirth costs 50,000, then x3", plain.rebirth.costBase == 50000 and plain.rebirth.costGrowth == 3)
+	check("starter egg is 500 Fear", row(plain.eggs, "StarterEgg").price == 500)
+	check("seven eggs, one live", #plain.eggs == 7 and row(plain.eggs, "StarterEgg").live == true and row(plain.eggs, "MoonEgg").live == false)
+	check("inventory holds 250", plain.economy.inventoryCap == 250)
+	check("manual cooldown is 8s", plain.manual.cooldownSeconds == 8)
 	local tutorialEgg = row(plain.eggs, "TutorialEgg")
 	check("tutorial egg is 80 Epic / 20 Legendary", tutorialEgg.odds.Epic == 80 and tutorialEgg.odds.Legendary == 20)
 	check("fusion is 4/3/3", row(plain.fusion.recipes, "Large").count == 4 and row(plain.fusion.recipes, "Mega").count == 3 and row(plain.fusion.recipes, "MASSIVE").count == 3)
@@ -58,24 +67,27 @@ return function(balance: any?, validator: any?, remotes: any?): string
 	-- each broken table must produce a problem naming the fault
 	local broken = {
 		{"bedroom odds off by 1%", "bedroomTiers: odds total", function(b) row(b.bedroomTiers, "Silver").chance.value = 21 end},
-		{"egg odds total 99%", "eggs.SpookyEgg.odds: odds total", function(b) row(b.eggs, "SpookyEgg").odds.Common.value = 59 end},
+		{"egg odds total 99%", "eggs.StarterEgg.odds: odds total", function(b) row(b.eggs, "StarterEgg").odds.Common.value = 77 end},
 		{"box odds off", "accessories box RareBox: odds total", function(b) b.accessories.items[1].weight.value = 10 end},
-		{"egg rolls an unknown rarity", 'unknown rarity "Megarare"', function(b) row(b.eggs, "SpookyEgg").odds.Megarare = b.eggs[1].odds.Common end},
+		{"egg rolls an unknown rarity", 'unknown rarity "Megarare"', function(b) row(b.eggs, "StarterEgg").odds.Megarare = b.eggs[1].odds.Common end},
 		{"duplicate rarity id", 'rarities: duplicate id "Rare"', function(b) row(b.rarities, "Epic").id = "Rare" end},
-		{"duplicate egg id", 'eggs: duplicate id "SpookyEgg"', function(b) row(b.eggs, "MoonlitEgg").id = "SpookyEgg" end},
+		{"duplicate egg id", 'eggs: duplicate id "StarterEgg"', function(b) row(b.eggs, "MoonEgg").id = "StarterEgg" end},
+		{"duplicate species id", 'monsters: duplicate id "sock-goblin"', function(b) row(b.monsters, "dust-bopper").id = "sock-goblin" end},
+		{"species pays outside its band", "monsters.sock-goblin.baseFear: 9000 is outside the Common band", function(b) row(b.monsters, "sock-goblin").baseFear.value = 9000 end},
+		{"species has an unknown rarity", 'monsters.sock-goblin: unknown rarity "Ultra"', function(b) row(b.monsters, "sock-goblin").rarity = "Ultra" end},
 		{"missing rarity", '"Secret" is missing', function(b) table.remove(b.rarities, 7) end},
 		{"missing mutation", '"UnHoly" is missing', function(b) table.remove(b.mutations, 5) end},
-		{"negative price", "eggs.SpookyEgg.price", function(b) row(b.eggs, "SpookyEgg").price.value = -5 end},
+		{"negative price", "eggs.StarterEgg.price", function(b) row(b.eggs, "StarterEgg").price.value = -5 end},
 		{"fractional price", "shop.items.RareBox.price", function(b) row(b.shop.items, "RareBox").price.value = 10.5 end},
 		{"NaN multiplier", "mutations.Golden.mult: expected a finite number", function(b) row(b.mutations, "Golden").mult.value = 0 / 0 end},
 		{"infinite multiplier", "bedroomTiers.GOD.mult: expected a finite number", function(b) row(b.bedroomTiers, "GOD").mult.value = math.huge end},
-		{"multiplier below 1", "accessories.items.CandleCharm.mult", function(b) b.accessories.items[1].mult.value = 0.5 end},
+		{"multiplier below 1", "accessories.items.BoneCharm.mult", function(b) b.accessories.items[1].mult.value = 0.5 end},
 		{"payout min above max", "rarities.Rare: minFear", function(b) row(b.rarities, "Rare").minFear.value = 9000 end},
 		{"number with no tag", "rebirth.floorCap: 3 has no C() or P() tag", function(b) b.rebirth.floorCap = 3 end},
 		{"recipe uses unknown size", 'uses unknown size "Tiny"', function(b) row(b.fusion.recipes, "Large").from = "Tiny" end},
 		{"sizes shrink", "fusion.sizes.Mega: mult must grow", function(b) row(b.fusion.sizes, "Mega").mult.value = 1.2 end},
 		{"shop sells an unknown box", "shop.items.FakeBox: no accessory box", function(b) row(b.shop.items, "RareBox").id = "FakeBox" end},
-		{"stock min above max", "shop.items.EpicBox: stockMin", function(b) row(b.shop.items, "EpicBox").stockMin.value = 9 end},
+		{"zero stock", "shop.items.EpicBox.stock", function(b) row(b.shop.items, "EpicBox").stock.value = 0 end},
 		{"tutorial points at a missing egg", "tutorial.eggId", function(b) b.tutorial.eggId = "NoEgg" end},
 		{"missing section", "rebirth", function(b) b.rebirth = nil end},
 	}
@@ -89,7 +101,7 @@ return function(balance: any?, validator: any?, remotes: any?): string
 	-- the startup error itself: load must refuse and list every fault
 	local data = copy(Balance)
 	row(data.bedroomTiers, "Silver").chance.value = 21
-	row(data.eggs, "SpookyEgg").price.value = -5
+	row(data.eggs, "StarterEgg").price.value = -5
 	local ok, message = pcall(ConfigValidator.load, data)
 	check("load refuses bad data and lists both faults", not ok and string.find(tostring(message), "2 problem(s)", 1, true) ~= nil)
 	table.insert(lines, "  sample startup error:\n  " .. tostring(message))
