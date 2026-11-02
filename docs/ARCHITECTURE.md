@@ -143,7 +143,8 @@ Defined in `DataTemplate.luau`. Store `JumpscareRNG_PlayerData_v1`, key `U_<user
 | `Index` | species id to true | written |
 | `Boxes`, `Accessories`, `Eggs` | uid to definition id | Phases 5, 6 |
 | `CaseAccessories` | bedroom index to accessory uid | Phase 5 |
-| `Trackers` | uid to `{State, DigId?}` | Phase 6 |
+| `Trackers` | uid to `{State, Node?, ExpiresAt?}` | yes |
+| `ShopBought` | `{Rotation, Items}` | yes |
 | `Tutorial` | `{Step, Complete, FreeBoxClaimed}` | Phase 5 |
 | `Settings` | `{ReducedScares, MusicVolume, SfxVolume}` | Phase 8 |
 | `Receipts` | purchase id to true | Phase 8 |
