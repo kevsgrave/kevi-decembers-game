@@ -105,7 +105,7 @@ Panels.register("Shop", function()
 	render()
 end, panel)
 ProximityPromptService.PromptTriggered:Connect(function(prompt)
-	if prompt.Name == "ShopPrompt" then Panels.open("Shop") end
+	if prompt.Name == "ShopPrompt" or prompt.Name == "TrackerPrompt" then Panels.open("Shop") end
 end)
 
 -- the countdown, in the panel and on the stall's own sign, from the server's clock

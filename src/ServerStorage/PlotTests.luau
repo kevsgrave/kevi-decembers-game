@@ -106,7 +106,7 @@ return function(): string
 		check("fusing sign", stations:FindFirstChild("FusingSign") ~= nil)
 		check("the book has its prompt", stations:FindFirstChild("IndexSpot") ~= nil and stations.IndexSpot:FindFirstChild("IndexPrompt") ~= nil)
 		local fuseSpot = stations:FindFirstChild("FuseSpot")
-		check("the cauldron has its prompt", fuseSpot ~= nil and fuseSpot:FindFirstChild("FusePrompt") ~= nil)
+		check("the fuse machine has its prompt", fuseSpot ~= nil and fuseSpot:FindFirstChild("FusePrompt") ~= nil)
 		local shopSpot = stations:FindFirstChild("ShopClaim")
 		check("the shop has its prompt", shopSpot ~= nil and shopSpot:FindFirstChild("ShopPrompt") ~= nil)
 		local pad = stations:FindFirstChild("RebirthPad")
@@ -116,6 +116,42 @@ return function(): string
 			if c.Name == "Ghost" then ghosts += 1 end
 		end
 		check("floating ghosts", ghosts >= 8)
+		local camp = stations:FindFirstChild("DigCampSpot")
+		check("the dig camp has its prompt", camp ~= nil and camp:FindFirstChild("TrackerPrompt") ~= nil)
+		-- every station's floating title has a live line the client knows how to fill
+		local CollectionService = game:GetService("CollectionService")
+		local seen = {}
+		for _, line in CollectionService:GetTagged("StationStatus") do
+			seen[line:GetAttribute("Station")] = true
+		end
+		for _, name in {"Shop", "Egg", "Fuse", "Rebirth", "Index", "Tracker"} do
+			check(name .. " has a live status line", seen[name] == true)
+		end
+		-- ghosts: every variant is well made, with a face, and stays close to home while moving
+		local Motion = require(game:GetService("ReplicatedStorage").Shared:WaitForChild("MapMotion"))
+		local tagged = CollectionService:GetTagged("Ghost")
+		check("many ghosts move", #tagged >= 25)
+		local badGhosts = 0
+		for _, ghost in tagged do
+			local home, drift = ghost:GetAttribute("Home"), ghost:GetAttribute("Drift") or 0
+			if not home or not ghost:FindFirstChild("Head") then
+				badGhosts += 1
+			else
+				for t = 0, 60, 5 do
+					if (Motion.ghost(home, t, ghost:GetAttribute("Phase") or 0, drift).Position - home.Position).Magnitude > drift * 1.5 + 1 then badGhosts += 1 end
+				end
+			end
+		end
+		check("ghosts stay close to home", badGhosts == 0, tostring(badGhosts))
+		check("a glow never goes fully see-through", Motion.pulse(0.1, 2, 1) < 0.8 and Motion.pulse(0, 0, 1) >= 0)
+		check("ghost blinks are brief", not Motion.blinking(1, 0) and Motion.blinking(0, 0))
+		local badMeshes = 0
+		for _, f in {workspace.Hub, stations, workspace:FindFirstChild("World"), workspace:FindFirstChild("Scenery"), workspace:FindFirstChild("Paths"), workspace:FindFirstChild("Ground")} do
+			for _, d in f:GetDescendants() do
+				if d:IsA("MeshPart") then badMeshes += 1 end
+			end
+		end
+		check("the map is parts only, no generated meshes", badMeshes == 0, tostring(badMeshes))
 	end
 	local nodes = workspace:FindFirstChild("DigNodes")
 	check("tracker dig spots exist", nodes ~= nil and #nodes:GetChildren() >= 12)

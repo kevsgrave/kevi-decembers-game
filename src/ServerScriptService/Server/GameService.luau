@@ -1106,8 +1106,8 @@ function GameService.Start()
 	shopClaim.ShopPrompt.Triggered:Connect(claimFreeBox)
 	setLabel(hub.ShopSign, "Shop")
 	-- the shop's prompt is also how the tutorial's free box is claimed
-	egg.BillboardGui.Text.Text = "Egg Shrine"
-	egg.HatchPrompt.ObjectText = "Egg Shrine"
+	egg.BillboardGui.Text.Text = "Egg Hatchery"
+	egg.HatchPrompt.ObjectText = "Egg Hatchery"
 	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")
 	if odds then odds.Text.Text = Config.EGG_NAME .. "\n" .. Config.EGG_COST .. " Fear\n" .. Config.oddsText() end
 	for _, plot in ipairs(plotsFolder:GetChildren()) do

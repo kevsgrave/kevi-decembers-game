@@ -2,7 +2,19 @@
 
 Rebuilt from the owner's references in `docs/references/style/`. Built and checked in Studio's edit mode only, so **nobody has played it yet**.
 
-## Screenshots
+## Polish pass (second round)
+
+Built from the owner's fuse machine reference, `docs/references/style/fuse-machine.png`. Screenshots are in `polish/`. The status lines in them are sample text; the live values only appear in Play. Moving parts only move in Play too, so the screenshots show them still.
+
+- **Stations:** the Fuse Machine, Shop, Egg Hatchery, Rebirth Portal, Book of Frights and a new Dig Camp are detailed machines and stalls, each with a floating gradient title and a live status line. Plot gates got glowing strips and lanterns.
+- **Ghosts:** 11 original designs built from parts, with expressions, plus outfits for the station keepers. They bob, sway and blink; those over the plaza, the plot gates and the islands also wander with soft trails. The stone ones don't move.
+- **Map:** a proper mansion, a bigger graveyard, a cabin and campfire in the Dark Woods, a colonnade, crystal and aqueduct in the Ruins, better bridges and edged paths, more plants and props, 4 islets, a lighthouse and a boat.
+- **Horizon:** softened, and only a thin line from the ground. From high up a grey band still shows past the edge of the water.
+- **Size:** about 16,000 instances and 6,200 parts in Workspace, up from about 9,000 instances. Streaming is on, but this hasn't been tested on a phone.
+
+Fusing's first recipe needs 4 monsters, so the Fuse Machine shows `0/4`, not the `0/3` in the reference.
+
+## Screenshots of the first round
 
 | Shot | What it shows |
 |---|---|
@@ -37,4 +49,7 @@ Rebuilt from the owner's references in `docs/references/style/`. Built and check
 - [ ] Shop, Index, Inventory, Rebirth, Settings, Eggs and Forge each open, close and work.
 - [ ] Prompts at the shop stall, forge, rebirth hall and book all work.
 - [ ] You can walk to your plot and over the bridges to all 4 islands, and a tracker's dig spot can be dug.
+- [ ] Ghosts bob and blink, the fan, dish and egg ring turn, and glows pulse. The frame rate stays smooth.
+- [ ] Status lines show real values: shop countdown, fuse count, rebirth cost, index count, and the tracker distance at the Dig Camp.
+- [ ] The Dig Camp prompt opens the shop.
 - [ ] Scares still pay Fear, and text is readable at phone size (use the device emulator).

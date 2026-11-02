@@ -144,11 +144,15 @@ Plots are **auto-assigned, by the owner's decision (overrides the master prompt'
 
 `PlotLayout` maps bedroom numbers to floors: 1-6 is floor 1, 7-12 is floor 2, and odd bays are on the left. Saves key placements by bedroom number, so a slot stays stable on any plot. A floor is meant to be a copy of `PlotTemplate.Bedrooms` lifted by `PlotLayout.floorHeight(floor)`, renumbered with `bedroomIndex`. Rooms are capped by `Config.MAX_BEDROOMS`.
 
-`MapBuilder` builds everything from parts, in this order: `lighting`, `ground` (checker tiles and teal water), `plots`, `hub`, `stations` (shop, forge, rebirth hall, book, ghosts; needs the hub), `paths`, `scenery`, `islands`, `digNodes` (removes any tree standing on a spot, so it runs after the trees), `exteriors`, `audit`. Re-running a step replaces only what it made.
+`MapBuilder` builds everything from parts, in this order: `lighting`, `ground` (checker tiles and teal water), `plots`, `hub`, `stations` (shop, forge, rebirth hall, book, ghosts; needs the hub), `paths`, `scenery`, `islands`, `digNodes` (removes any tree, root or log on a spot, so it runs after them), `exteriors`, `audit`. Re-running a step replaces only what it made.
 
 ## Screens
 
 `Shared/Style.luau` holds the look from `docs/references/style/`: colours, chunky buttons, studded panels and cards. `Shared/Panels.luau` keeps one panel open at a time; each panel script registers itself under a name (Shop, Index, Inventory, Rebirth, Settings, Eggs, Forge) and the HUD buttons call `Panels.toggle`.
+
+## What moves on the map
+
+`MapBuilder` tags things and `StarterPlayerScripts` plays them on each client, so the server never sees any of it. Ghosts are tagged `Ghost`, and machine parts are tagged `Life` with attributes for spin, bob and pulse. `MapLife.client` moves them, using the maths in `Shared/MapMotion.luau`, which `PlotTests` checks, and only within 260 studs of the camera. Each station's live line is a label tagged `StationStatus` with a `Station` attribute, and `StationStatus.client` fills it once a second from server-owned values. The Dig Camp's prompt opens the shop, because trackers are sold there.
 
 ## Saved data, schema version 3
 

@@ -37,6 +37,16 @@ local function makeMound(position)
 	p.CanQuery = false p.Color = Color3.fromRGB(110, 80, 55) p.Material = Enum.Material.Ground p.Position = position - Vector3.new(0, 1.2, 0)
 	local light = Instance.new("PointLight") light.Color = TEAL light.Range = 16 light.Brightness = 2 light.Shadows = false light.Parent = p
 	local sparkle = Instance.new("Sparkles") sparkle.SparkleColor = TEAL sparkle.Parent = p
+	-- clods of dirt around it, and a floating sign you can spot from a way off
+	for k = 1, 6 do
+		local a = k * math.pi / 3
+		local clod = Instance.new("Part") clod.Name = "Clod" clod.Size = Vector3.new(1.6, 1, 1.6) clod.Anchored = true clod.CanCollide = false clod.CanQuery = false clod.CanTouch = false
+		clod.Color = Color3.fromRGB(150, 105, 70) clod.CFrame = CFrame.new(position + Vector3.new(math.cos(a) * 3.6, -0.3, math.sin(a) * 3.6)) * CFrame.Angles(0, a, 0.3) clod.Parent = p
+	end
+	local sign = Instance.new("BillboardGui") sign.Size = UDim2.fromScale(12, 2.6) sign.StudsOffset = Vector3.new(0, 6, 0) sign.LightInfluence = 0 sign.Parent = p
+	local signText = Style.label("Text", sign, "Dig here!", Color3.new(1, 1, 1))
+	signText.Size = UDim2.fromScale(1, 1) signText.TextXAlignment = Enum.TextXAlignment.Center
+	local gradient = Instance.new("UIGradient") gradient.Rotation = 90 gradient.Color = ColorSequence.new(TEAL, Style.GOLD) gradient.Parent = signText
 	local prompt = Instance.new("ProximityPrompt") prompt.ActionText = "Dig" prompt.ObjectText = "Buried Moon Egg" prompt.HoldDuration = Config.Balance.trackers.digHoldSeconds
 	prompt.MaxActivationDistance = Config.Balance.trackers.digDistance prompt.RequiresLineOfSight = false prompt.Parent = p
 	prompt.Triggered:Connect(function()
@@ -54,6 +64,7 @@ RunService.RenderStepped:Connect(function()
 	local distance = (root.Position - state.position).Magnitude
 	local left = math.max(0, state.expiresAt - workspace:GetServerTimeNow())
 	readout.Text = string.format("Buried egg: %d studs away, %d:%02d left", distance, math.floor(left / 60), math.floor(left % 60))
+	player:SetAttribute("TrackerText", string.format("Buried egg: %d studs", distance)) -- only this client sees it; the Dig Camp shows it
 	if distance < 60 and not mound then mound = makeMound(state.position) end
 end)
 
@@ -61,5 +72,8 @@ stateRemote.OnClientEvent:Connect(function(next)
 	removeMound()
 	state = next and next.position and next or nil
 	readout.Visible = state ~= nil
-	if not state then arrow:hide() end
+	if not state then
+		arrow:hide()
+		player:SetAttribute("TrackerText", nil)
+	end
 end)
