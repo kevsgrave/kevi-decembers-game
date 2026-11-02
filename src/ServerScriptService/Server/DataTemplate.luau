@@ -128,6 +128,9 @@ function DataTemplate.prepare(raw: any): (Data?, string?)
 			return nil, "corrupt"
 		end
 	end
+	-- nobody with no monsters can be stuck below the first egg's price, like saves from when eggs and starting Fear were cheaper
+	-- shortcut: only tops up to the starting Fear, revisit when the tutorial voucher replaces starting Fear
+	if next(raw.Monsters) == nil and raw.Fear < Config.START_FEAR then raw.Fear = Config.START_FEAR end
 	-- a placement pointing at a missing monster, or a second placement of one monster, is dropped (the monster itself is never deleted)
 	local placed = {}
 	for index, uid in raw.Placed do
@@ -168,6 +171,7 @@ do
 	assert(bad == "corrupt", "NaN Fear must be refused")
 	local fixed = DataTemplate.prepare({Fear = 10, Monsters = {m1 = {Kind = "Jeff", Tier = "Rare"}}, Placed = {["1"] = "m1", ["2"] = "gone"}})
 	assert(fixed and fixed.Placed["1"] == "m1" and fixed.Placed["2"] == nil and fixed.Rebirths == 0, "reconcile and placement repair")
+	assert(DataTemplate.prepare({SchemaVersion = CURRENT_VERSION, Fear = 1}).Fear == Config.START_FEAR, "a player with no monsters can always afford the first egg")
 	local _, damaged = DataTemplate.prepare({SchemaVersion = CURRENT_VERSION, Monsters = {m1 = "not a monster"}})
 	assert(damaged == "corrupt", "a damaged monster must refuse the save")
 	-- a v1 save keeps everything it had and gains the v2 fields

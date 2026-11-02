@@ -43,7 +43,7 @@ The save also has fields for lifetime Fear, species index, tutorial, accessories
 
 | Test | Result |
 |---|---|
-| `InventoryTests`, 46 checks | All passed |
+| `InventoryTests`, 50 checks | All passed |
 | `ConfigTests`, 63 checks | All passed, now with 24 broken tables |
 | `PlotTests`, 104 checks | All passed |
 | Locked room, occupied case, wrong owner, double placement, moving monsters, two requests at once | Passed, on the rules only |
@@ -62,6 +62,14 @@ I tested in Edit mode, as your rules require, so the panel hasn't been seen on s
 4. **If saving fails mid-session** the game retries and warns in Output. It doesn't yet lock spending or warn the player, as the package asks.
 5. **Inventory filters and compare** from the package are not built, only sorting. Favorites save and show, but protect nothing until fusion exists.
 6. **Rooms still read bright**, the crawl hole is still too small to walk through, and server size still needs setting to 8. All from Phase 2.
+
+## Fix after the first test: started with 250 Fear
+
+**Cause:** the owner's real save, `U_9684873058`, held 250 Fear and no monsters, from when starting Fear was 250. It migrated to schema 3 with its Fear kept, which is below the new 500 egg. The fresh-save path was fine.
+
+**Fix:** when a save loads, a player who owns no monsters and has less than the starting Fear is topped up to it. It works on any save and needs no reset. Saves with monsters, or with more Fear, are untouched. No save was edited by hand.
+
+**Which save a test uses:** `U_` means the server wasn't running as Studio, such as a published game or a Team Test. Those use the real saves, so **only Play in Studio uses the separate `STUDIO_` saves**.
 
 ## Manual test
 

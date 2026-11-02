@@ -161,6 +161,15 @@ return function(): string
 	check("a monster placed twice is repaired to one room, and kept", placements == 1 and repaired.Monsters.m1 ~= nil)
 	check("the hotbar drops placed, missing and repeated entries", #repaired.Hotbar == 0)
 
+	-- nobody gets stuck below the first egg
+	check("starting Fear buys the live egg", Config.START_FEAR >= Config.EGG_COST)
+	local stuck = DataTemplate.prepare({SchemaVersion = 3, Fear = 250, Rebirths = 0, NextUid = 1, TotalFearEarned = 0, Monsters = {}, Placed = {}, Hotbar = {}})
+	check("an old save at 250 Fear with no monsters is topped up to the egg price", stuck ~= nil and stuck.Fear == Config.START_FEAR and stuck.Fear >= Config.EGG_COST)
+	local rich = DataTemplate.prepare({SchemaVersion = 3, Fear = 9000, Rebirths = 0, NextUid = 1, TotalFearEarned = 0, Monsters = {}, Placed = {}, Hotbar = {}})
+	check("a richer save with no monsters is left alone", rich ~= nil and rich.Fear == 9000)
+	local owner = DataTemplate.prepare({SchemaVersion = 3, Fear = 10, Rebirths = 0, NextUid = 2, TotalFearEarned = 0, Monsters = {m1 = {Kind = "Jeff", Tier = "Rare", BaseFear = 300}}, Placed = {}, Hotbar = {}})
+	check("a save that owns a monster gets no top-up", owner ~= nil and owner.Fear == 10)
+
 	table.insert(lines, `{if failed == 0 then "ALL PASSED" else failed .. " FAILED"} ({#lines} checks)`)
 	return table.concat(lines, "\n")
 end
