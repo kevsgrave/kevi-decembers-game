@@ -17,6 +17,8 @@ local openBoxRemote = Net.Function("OpenBox")
 local equipRemote = Net.Function("EquipAccessory")
 local unequipRemote = Net.Function("UnequipAccessory")
 local openCaseRemote = Net.Event("OpenCase")
+local hatchOwnedRemote = Net.Function("HatchOwnedEgg")
+local activateTrackerRemote = Net.Function("ActivateTracker")
 
 local DARK = Color3.fromRGB(20, 10, 40)
 local PANEL = Color3.fromRGB(60, 40, 110)
@@ -172,6 +174,9 @@ local function boxOdds(boxId)
 	return table.concat(parts, ", ")
 end
 
+-- closes the panel so a hatch's reveal is in full view; set once the panel functions exist
+local setOpenLater = function() end
+
 local function renderItems()
 	local boxes = current and current.boxes or {}
 	local accessories = current and current.accessories or {}
@@ -191,6 +196,32 @@ local function renderItems()
 				hint.Text = "You got " .. spaced(result.id) .. ", x" .. result.mult .. " Fear!"
 			end
 		end)
+	end
+	for _, egg in ipairs(current and current.eggs or {}) do
+		position += 1
+		local details = Config.EGGS[egg.id]
+		local parts = {}
+		for _, r in ipairs(Config.Balance.rarities) do
+			local chance = details and details.odds[r.id]
+			if chance and chance > 0 then table.insert(parts, r.id .. " " .. tostring(chance) .. "%") end
+		end
+		local f = rowFrame(egg.uid, position, 72)
+		twoLines(f, details and details.name or egg.id, GOLD, table.concat(parts, ", "), 12)
+		actionButton(f, "Hatch", LIME, function()
+			setOpenLater()
+			pcall(hatchOwnedRemote.InvokeServer, hatchOwnedRemote, egg.uid)
+		end)
+	end
+	for _, tracker in ipairs(current and current.trackers or {}) do
+		position += 1
+		local f = rowFrame(tracker.uid, position, 72)
+		local active = tracker.state == "Activated"
+		twoLines(f, "Tracker", Color3.fromRGB(120, 255, 220), if active then "Follow the arrow to your buried egg" else "Leads you to a secret egg you can dig up", 12)
+		if not active then
+			actionButton(f, "Use", LIME, function()
+				pcall(activateTrackerRemote.InvokeServer, activateTrackerRemote, tracker.uid)
+			end)
+		end
 	end
 	table.sort(accessories, function(a, b) return a.mult > b.mult end)
 	for _, item in ipairs(accessories) do
@@ -257,6 +288,8 @@ local function setOpen(open)
 	panel.Visible = open
 	if open then render() else caseSlot = nil end
 end
+
+setOpenLater = function() setOpen(false) end
 
 local function showTab(name)
 	currentTab = name

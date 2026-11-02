@@ -269,12 +269,12 @@ function MapBuilder.hub()
 	label(board, Enum.NormalId.Front, "Odds", Color3.new(1, 1, 1))
 	for _, x in ipairs({-3.2, 3.2}) do deco(P(f, "OddsPost", Vector3.new(0.5, 9, 0.5), board.CFrame * CFrame.new(x, -0.5, 0.3), Color3.fromRGB(70, 45, 30), Enum.Material.Wood)) end
 
-	-- shop stall between two paths, facing the centre (the rotating shop is not built yet)
+	-- shop stall between two paths, facing the centre
 	local shopCF = ringCF(R - 12, 22.5, 0.6)
 	kit("ShopStall", f, shopCF, 12)
 	local shopSign = P(f, "ShopSign", Vector3.new(10, 2.4, 0.4), shopCF * CFrame.new(0, 13.5, -1), Color3.fromRGB(80, 50, 35), Enum.Material.WoodPlanks)
 	deco(shopSign)
-	label(shopSign, Enum.NormalId.Front, "Shop - opening soon", Color3.fromRGB(255, 200, 70))
+	label(shopSign, Enum.NormalId.Front, "Shop", Color3.fromRGB(255, 200, 70))
 
 	-- benches, lamps, pumpkins and a cauldron round the plaza; lamps mark each path's mouth
 	for k = 1, MapBuilder.PLOT_COUNT do
@@ -353,9 +353,9 @@ function MapBuilder.stations()
 	deco(beam)
 	label(beam, Enum.NormalId.Front, "Rebirth Station", Color3.fromRGB(215, 170, 255))
 
-	-- the shop's first job: the tutorial's free box, claimed at the stall's counter. The full shop comes next.
+	-- the stall's counter: opens the shop, and gives the tutorial's free box on the first visit
 	local shopSpot = P(f, "ShopClaim", Vector3.new(4, 6, 1), ringCF(R - 12, 22.5, 0.6) * CFrame.new(0, 3, -5), Color3.new(1, 1, 1), nil, {Transparency = 1, CanCollide = false, CanTouch = false})
-	local shopPrompt = Instance.new("ProximityPrompt") shopPrompt.Name = "ClaimPrompt" shopPrompt.ActionText = "Claim Free Box" shopPrompt.ObjectText = "Shop"
+	local shopPrompt = Instance.new("ProximityPrompt") shopPrompt.Name = "ShopPrompt" shopPrompt.ActionText = "Open Shop" shopPrompt.ObjectText = "Shop"
 	shopPrompt.HoldDuration = 0.3 shopPrompt.MaxActivationDistance = 12 shopPrompt.RequiresLineOfSight = false shopPrompt.Parent = shopSpot
 
 	-- floating ghosts over the plaza and one at each plot's gate
@@ -781,6 +781,37 @@ function MapBuilder.world()
 		P(f, "Boundary", Vector3.new(wallLen, 600, 4), CFrame.lookAt(p, Vector3.new(0, 250, 0)), STONE, nil, {Transparency = 1, CanTouch = false, CanQuery = false})
 	end
 	return "world: " .. placed .. " trees, " .. #f:GetChildren() .. " items"
+end
+
+--------------------------------------------------------------------------- tracker dig spots
+
+-- invisible spots trackers can pick, on open ground in the clearings. Only the server uses them; each player sees their own mound.
+local DIG_SPOTS = {
+	{zone = "well", radius = 26, angles = {30, 150, 270}},
+	{zone = "graveyard", radius = 44, angles = {60, 180, 300}},
+	{zone = "rocks", radius = 28, angles = {20, 140, 260}},
+	{zone = "picnic", radius = 28, angles = {50, 170, 290}},
+	{zone = "farm", radius = 70, angles = {100, 220, 340}},
+	{zone = "hollow", radius = 38, angles = {80, 200, 320}},
+}
+
+function MapBuilder.digNodes()
+	local f = folder("DigNodes")
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = {workspace.Terrain}
+	local n = 0
+	for _, spot in ipairs(DIG_SPOTS) do
+		for _, a in ipairs(spot.angles) do
+			local pos = ZONES[spot.zone].c + polar(spot.radius, a)
+			local hit = workspace:Raycast(pos + Vector3.new(0, 150, 0), Vector3.new(0, -300, 0), params)
+			if hit then
+				n += 1
+				P(f, "Dig" .. n, Vector3.new(2, 1, 2), CFrame.new(hit.Position + Vector3.new(0, 0.5, 0)), Color3.new(1, 1, 1), nil, {Transparency = 1, CanCollide = false, CanTouch = false, CanQuery = false})
+			end
+		end
+	end
+	return "dig spots: " .. n
 end
 
 --------------------------------------------------------------------------- budget report (vault: audit after every art pass)

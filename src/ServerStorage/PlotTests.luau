@@ -105,7 +105,7 @@ return function(): string
 	if stations then
 		check("fusing sign", stations:FindFirstChild("FusingSign") ~= nil)
 		local shopSpot = stations:FindFirstChild("ShopClaim")
-		check("the shop has its free box prompt", shopSpot ~= nil and shopSpot:FindFirstChild("ClaimPrompt") ~= nil)
+		check("the shop has its prompt", shopSpot ~= nil and shopSpot:FindFirstChild("ShopPrompt") ~= nil)
 		local pad = stations:FindFirstChild("RebirthPad")
 		check("rebirth station has its prompt", pad ~= nil and pad:FindFirstChild("RebirthPrompt") ~= nil)
 		local ghosts = 0
@@ -114,6 +114,8 @@ return function(): string
 		end
 		check("floating ghosts", ghosts >= 8)
 	end
+	local nodes = workspace:FindFirstChild("DigNodes")
+	check("tracker dig spots exist", nodes ~= nil and #nodes:GetChildren() >= 12)
 	local lighting = game:GetService("Lighting")
 	check("night sky", lighting.ClockTime < 3 or lighting.ClockTime > 21)
 

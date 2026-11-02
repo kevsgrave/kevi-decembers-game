@@ -158,7 +158,11 @@ function Inventory.snapshot(d)
 	end
 	local index = {}
 	for kind in d.Index do index[kind] = true end
-	return {rows = rows, capacity = Config.INVENTORY_CAP, boxes = boxes, accessories = accessories, index = index}
+	local eggs = {}
+	for uid, id in d.Eggs do table.insert(eggs, {uid = uid, id = id}) end
+	local trackers = {}
+	for uid, t in d.Trackers do table.insert(trackers, {uid = uid, state = t.State}) end
+	return {rows = rows, capacity = Config.INVENTORY_CAP, boxes = boxes, accessories = accessories, index = index, eggs = eggs, trackers = trackers}
 end
 
 return Inventory

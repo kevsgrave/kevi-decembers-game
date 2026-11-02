@@ -120,6 +120,11 @@ local function hatch(eggId, feedback)
 	end
 end
 
+-- eggs hatched from the inventory come back here for the same reveal
+Net.Event("HatchReveal").OnClientEvent:Connect(function(result)
+	task.spawn(startReveal, result)
+end)
+
 local function oddsLine(egg)
 	local parts = {}
 	for _, r in ipairs(Config.Balance.rarities) do

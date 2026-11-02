@@ -25,10 +25,12 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Server/ScareScheduler.luau` | `...Server.ScareScheduler` | One scheduler for every room's scares |
 | `.../Shared/Payout.luau` | `...Shared.Payout` | The Fear formula |
 | `.../Shared/Tutorial.luau` | `...Shared.Tutorial` | The tutorial steps and rules |
-| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau` | `ServerStorage.*` | Tests, command bar only |
+| `.../Shared/GuideArrow.luau` | `...Shared.GuideArrow` | The on-screen arrow |
+| `.../Server/Shop.luau`, `Tracker.luau`, `AccessoryLook.luau` | `...Server.*` | Shop rules, tracker rules, accessory shapes |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau`, `ShopTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
-| not in the repo | `Workspace` (including `Stations`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
+| not in the repo | `Workspace` (including `Stations` and `DigNodes`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
 
 Startup order: `Main` requires `Config` (Balance is validated here, and a failure stops the game), starts `GameService` (creates live remotes), then starts `PlayerData`.
 
@@ -36,7 +38,7 @@ Startup order: `Main` requires `Config` (Balance is validated here, and a failur
 
 Edit `Balance.luau`. Wrap the value in `C()` if the design notes settle it, `P()` if it's a default anyone can change. An untagged number or boolean stops the game at startup.
 
-Used by the live game so far: starting Fear, all egg prices and odds, the accessory items, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: shop and trackers (6), mutations, fusion and floors (7), the 42-species roster (when original models exist).
+Used by the live game so far: starting Fear, all egg prices and odds, the accessory items, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: mutations, fusion and floors (7), the 42-species roster (when original models exist).
 
 ## Server validation convention
 
@@ -75,10 +77,14 @@ Client requests with several steps carry a request id (the last `id` argument in
 | EquipAccessory | Function | client to server | slotId, accessoryUid | live |
 | UnequipAccessory | Function | client to server | slotId | live |
 | OpenCase | Event | server to client | state | live |
-| ShopChanged | Event | server to client | state | Phase 6 |
-| BuyShopItem | Function | client to server | itemId, requestId | Phase 6 |
-| ActivateTracker | Function | client to server | trackerUid | Phase 6 |
-| Dig | Function | client to server | digId | Phase 6 |
+| ShopChanged | Event | server to client | none | live |
+| GetShop | Function | client to server | none | live |
+| BuyShopItem | Function | client to server | itemId, rotation | live |
+| ActivateTracker | Function | client to server | trackerUid | live |
+| Dig | Function | client to server | trackerUid | live |
+| TrackerState | Event | server to client | state | live |
+| HatchOwnedEgg | Function | client to server | eggUid | live |
+| HatchReveal | Event | server to client | state | live |
 | FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
@@ -97,6 +103,12 @@ Clients get payouts from bedroom attributes (`PayoutSeq`, `PayoutAmount`, `Tier`
 ## Tutorial
 
 `Tutorial.luau` works out the current step from what the save holds: monsters, placements, and the `ManualDone`, `EggUsed`, `ScareSeen`, `FreeBoxClaimed` and `Complete` flags. There's no counter to get out of step, so disconnects and doing things out of order are safe. `GameService.tutorialChanged` sends the step and its target after anything that could change it. `Step` in the save is only a record. "How to play" is client-only text, so it can't repeat a reward.
+
+## Shop and trackers
+
+`Shop.luau` works out each rotation's lineup from `floor(time / 300)`, so all servers agree with nothing stored. Stock is per player, in `ShopBought`, and resets when the rotation changes. `Tracker.luau` runs `Owned -> Activated -> dug`. Digging uses up the tracker and saves the egg together. Abandoned digs and removed spots go back to `Owned`. Spots are `workspace.DigNodes`, built by `MapBuilder.digNodes()`.
+
+`ServerStorage` attributes `TestGrantFear` and `TestGrantTracker` are Studio-only test helpers.
 
 ## Inventory and hotbar
 

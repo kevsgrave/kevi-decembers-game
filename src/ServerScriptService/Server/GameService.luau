@@ -19,6 +19,9 @@ local GuestKids = require(script.Parent.GuestKids)
 local RoomStyles = require(script.Parent.RoomStyles)
 local PlotFrame = require(script.Parent.PlotFrame)
 local PlotClaims = require(script.Parent.PlotClaims)
+local Shop = require(script.Parent.Shop)
+local Tracker = require(script.Parent.Tracker)
+local AccessoryLook = require(script.Parent.AccessoryLook)
 local Inventory = require(script.Parent.Inventory)
 local ScareScheduler = require(script.Parent.ScareScheduler)
 
@@ -29,7 +32,7 @@ local hub = workspace:WaitForChild("Hub")
 local template = ServerStorage:WaitForChild("PlotTemplate")
 
 local rng = Random.new()
-local popupRemote, rebirthRemote, inventoryRemote, cueRemote, tutorialRemote, openCaseRemote -- created in Start, from one list
+local popupRemote, rebirthRemote, inventoryRemote, cueRemote, tutorialRemote, openCaseRemote, shopRemote, trackerRemote, revealRemote -- created in Start, from one list
 
 local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
 local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
@@ -212,7 +215,10 @@ local function showInfo(player, bedroom)
 	local info = bedroom.ShowcaseLid.Info
 	local d = data(player)
 	if not d then return end
-	local uid = d.Placed[tostring(bedroom:GetAttribute("Index"))]
+	local slot = tostring(bedroom:GetAttribute("Index"))
+	local _, accessoryId = Payout.accessoryOf(d, slot)
+	AccessoryLook.show(bedroom, accessoryId)
+	local uid = d.Placed[slot]
 	local monster = uid and d.Monsters[uid]
 	local tier = monster and Config.TIER_BY_NAME[monster.Tier]
 	if not tier then
@@ -630,19 +636,118 @@ local function manualTap(player, ...)
 	end
 end
 
--- the shop's free box: once ever
+-- the stall's prompt opens the shop on the client; the first visit also gives the free box, once ever
 local function claimFreeBox(player)
 	if not allowItems(player) then return end
 	local d = data(player)
 	local spot = workspace.Stations:FindFirstChild("ShopClaim")
-	if not d or not spot or not near(player, spot, spot.ClaimPrompt.MaxActivationDistance) then return end
-	if not Inventory.claimFreeBox(d) then
-		popup(player, "You've had your free box. The full shop opens soon!")
-		return
-	end
+	if not d or not spot or not near(player, spot, spot.ShopPrompt.MaxActivationDistance) then return end
+	if not Inventory.claimFreeBox(d) then return end
 	inventoryChanged(player)
 	task.spawn(PlayerData.SaveNowAsync, player)
 	popup(player, "Free Rare box! Open it in your Inventory, under Items.")
+end
+
+local function getShop(player, ...)
+	if not allowInventory(player) or not Remotes.checkArgs("GetShop", ...) then return nil end
+	local d = data(player)
+	return d and Shop.stateFor(d, os.time())
+end
+
+-- the client names an item and the rotation it was looking at; the price, stock and item all come from the server
+local function buyShopItem(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("BuyShopItem", ...) then return false, "unavailable" end
+	local d = data(player)
+	if not d then return false, "unavailable" end
+	local spot = workspace.Stations:FindFirstChild("ShopClaim")
+	if not spot or not near(player, spot, 40) then return false, "far", Shop.stateFor(d, os.time()) end
+	local itemId, rotation = ...
+	local ok, why = Shop.buy(d, itemId, rotation, os.time())
+	if ok then
+		setFear(player, d, d.Fear)
+		inventoryChanged(player)
+		task.spawn(PlayerData.SaveNowAsync, player)
+	end
+	return ok, why, Shop.stateFor(d, os.time())
+end
+
+-- Trackers. The server picks and keeps the spot, and only tells that player where it is.
+local function digNodes()
+	local folder = workspace:FindFirstChild("DigNodes")
+	return folder and folder:GetChildren() or {}
+end
+
+local function nodeNamed(name)
+	local folder = workspace:FindFirstChild("DigNodes")
+	return folder and name and folder:FindFirstChild(name)
+end
+
+local function trackerChanged(player)
+	local d = data(player)
+	if not d then return end
+	if Tracker.tidy(d, function(name) return nodeNamed(name) ~= nil end, os.time()) then
+		popup(player, "Your tracker's trail went cold. It's back in your Items.")
+		inventoryChanged(player)
+	end
+	local uid, active = Tracker.active(d)
+	local node = active and nodeNamed(active.Node)
+	trackerRemote:FireClient(player, node and {uid = uid, position = node.Position, expiresAt = active.ExpiresAt} or {})
+end
+
+local function activateTracker(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("ActivateTracker", ...) then return false end
+	local d = data(player)
+	local uid = ...
+	if not d then return false end
+	local names = {}
+	for _, node in digNodes() do table.insert(names, node.Name) end
+	table.sort(names)
+	local ok, why = Tracker.activate(d, uid, names, rng:NextNumber(0, 1), os.time())
+	if not ok then
+		popup(player, why == "busy" and "You're already following a tracker" or "That tracker can't be used right now")
+		return false
+	end
+	inventoryChanged(player)
+	trackerChanged(player)
+	task.spawn(PlayerData.SaveNowAsync, player)
+	return true
+end
+
+-- the server checks it's this player's own dig, and that they're really standing at the spot
+local function digEgg(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("Dig", ...) then return false end
+	local d = data(player)
+	local uid = ...
+	local t = d and d.Trackers[uid]
+	local node = t and nodeNamed(t.Node)
+	if not node or not near(player, node, Config.Balance.trackers.digDistance) then return false end
+	if not Tracker.dig(d, uid, os.time()) then return false end
+	inventoryChanged(player)
+	trackerChanged(player)
+	task.spawn(PlayerData.SaveNowAsync, player)
+	popup(player, "You dug up a Buried Moon Egg! Hatch it in your Inventory, under Items.")
+	return true
+end
+
+-- hatches an egg you already own. The egg is used up and the monster added together.
+local function hatchOwnedEgg(player, ...)
+	if not allowHatch(player) or not Remotes.checkArgs("HatchOwnedEgg", ...) then return false end
+	local d = data(player)
+	local uid = ...
+	local eggId = d and d.Eggs[uid]
+	if not eggId then return false end
+	if Inventory.isFull(d) then
+		popup(player, "Your inventory is full (" .. Config.INVENTORY_CAP .. ")")
+		return false
+	end
+	local tier = Config.pickFromEgg(eggId, rng:NextNumber(0, 100))
+	local baseFear = rng:NextInteger(tier.min, tier.max)
+	d.Eggs[uid] = nil
+	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, baseFear, "dig"))
+	inventoryChanged(player)
+	task.spawn(PlayerData.SaveNowAsync, player)
+	revealRemote:FireClient(player, {kind = Config.MONSTER_KIND, tier = tier.name, baseFear = baseFear})
+	return true
 end
 
 local function openBox(player, ...)
@@ -783,6 +888,12 @@ end
 
 local function onLoaded(profile)
 	local player, d = profile.Player, profile.Data
+	-- test helpers, set from the Studio command bar. IsStudio is false on real servers, so they can't reach real saves.
+	if game:GetService("RunService"):IsStudio() then
+		local fear = ServerStorage:GetAttribute("TestGrantFear")
+		if type(fear) == "number" then d.Fear = math.clamp(math.floor(fear), 0, Config.MAX_FEAR) end
+		if ServerStorage:GetAttribute("TestGrantTracker") == true then Tracker.add(d) end
+	end
 	local ls = Instance.new("Folder") ls.Name = "leaderstats"
 	local fear = Instance.new("IntValue") fear.Name = "Fear" fear.Value = d.Fear fear.Parent = ls -- numeric stat first
 	local rb = Instance.new("IntValue") rb.Name = "Rebirths" rb.Parent = ls
@@ -805,6 +916,7 @@ local function onLoaded(profile)
 		task.defer(sendHome, player)
 		task.defer(tutorialChanged, player)
 	end)
+	trackerChanged(player) -- resume a dig in progress at the same spot
 	if profile.Unsaved then popup(player, "Studio test: progress will not be saved") end
 	claim(player)
 end
@@ -818,6 +930,14 @@ function GameService.Start()
 	cueRemote = remotes.ManualCue
 	tutorialRemote = remotes.TutorialStep
 	openCaseRemote = remotes.OpenCase
+	shopRemote = remotes.ShopChanged
+	trackerRemote = remotes.TrackerState
+	revealRemote = remotes.HatchReveal
+	remotes.GetShop.OnServerInvoke = getShop
+	remotes.BuyShopItem.OnServerInvoke = buyShopItem
+	remotes.ActivateTracker.OnServerInvoke = activateTracker
+	remotes.Dig.OnServerInvoke = digEgg
+	remotes.HatchOwnedEgg.OnServerInvoke = hatchOwnedEgg
 	remotes.HatchEgg.OnServerInvoke = hatchEgg
 	remotes.OpenBox.OnServerInvoke = openBox
 	remotes.EquipAccessory.OnServerInvoke = equipAccessory
@@ -841,7 +961,8 @@ function GameService.Start()
 	-- the prompt opens the egg panel on the client, which shows every egg's odds before anyone spends
 	egg.HatchPrompt.ActionText = "Open Eggs"
 	local shopClaim = workspace:WaitForChild("Stations"):WaitForChild("ShopClaim")
-	shopClaim.ClaimPrompt.Triggered:Connect(claimFreeBox)
+	shopClaim.ShopPrompt.Triggered:Connect(claimFreeBox)
+	setLabel(hub.ShopSign, "Shop")
 	egg.BillboardGui.Text.Text = "Egg Shrine"
 	egg.HatchPrompt.ObjectText = "Egg Shrine"
 	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")
@@ -854,6 +975,27 @@ function GameService.Start()
 		while true do
 			task.wait(0.1)
 			scheduler:tick(os.clock())
+		end
+	end)
+	-- tells clients when new stock arrives, and retires abandoned digs
+	task.spawn(function()
+		local rotation = Shop.rotationAt(os.time())
+		local sinceTidy = 0
+		while true do
+			task.wait(1)
+			local now = Shop.rotationAt(os.time())
+			if now ~= rotation then
+				rotation = now
+				shopRemote:FireAllClients()
+			end
+			sinceTidy += 1
+			if sinceTidy >= 15 then
+				sinceTidy = 0
+				for _, player in ipairs(Players:GetPlayers()) do
+					local d = data(player)
+					if d and Tracker.active(d) then trackerChanged(player) end
+				end
+			end
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)

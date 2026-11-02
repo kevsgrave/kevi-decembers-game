@@ -205,7 +205,7 @@ return {
 
 	shop = {
 		rotationSeconds = C(300),
-		offersMin = P(3),
+		offersMin = P(1, "the package says 3, but with only 5 items that fills the shelf and makes Legendary appear about 90% of the time instead of 20%"),
 		offersMax = P(5),
 		-- appearChance is percent per shelf check; stock is each player's own allotment per rotation
 		items = {
@@ -220,6 +220,8 @@ return {
 	trackers = {
 		rewardEgg = "BuriedMoonEgg",
 		digExpireSeconds = P(900),
+		digDistance = P(12, "how close you must be to dig"),
+		digHoldSeconds = P(2),
 		restoreOnExpire = P(true, "an abandoned dig gives the tracker back, so paid items are never lost"),
 	},
 

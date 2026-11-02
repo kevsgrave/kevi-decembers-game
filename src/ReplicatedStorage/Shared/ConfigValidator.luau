@@ -222,6 +222,8 @@ local function validate(b: any, problems: {string})
 	local trackers = section("trackers", b.trackers)
 	if not eggs[trackers.rewardEgg] then bad(`trackers.rewardEgg: unknown egg "{tostring(trackers.rewardEgg)}"`) end
 	num("trackers.digExpireSeconds", trackers.digExpireSeconds, 1)
+	num("trackers.digDistance", trackers.digDistance, 1)
+	num("trackers.digHoldSeconds", trackers.digHoldSeconds, 0)
 	if type(trackers.restoreOnExpire) ~= "boolean" then bad("trackers.restoreOnExpire: expected true or false") end
 
 	local tutorial = section("tutorial", b.tutorial)

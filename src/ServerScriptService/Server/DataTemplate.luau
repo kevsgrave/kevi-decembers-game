@@ -26,7 +26,8 @@ export type Data = {
 	Accessories: {[string]: string}, -- uid -> accessory id
 	CaseAccessories: {[string]: string}, -- bedroom index as a string -> accessory uid
 	Eggs: {[string]: string}, -- uid -> unhatched egg id
-	Trackers: {[string]: {State: string, DigId: string?}}, -- uid -> Owned, Activated or Claimed
+	Trackers: {[string]: {State: string, Node: string?, ExpiresAt: number?}}, -- uid -> Owned or Activated; used up when dug
+	ShopBought: {Rotation: number, Items: {[string]: number}}, -- how much of each item this rotation, so stock survives a rejoin
 	Tutorial: {Step: number, Complete: boolean, FreeBoxClaimed: boolean, ManualDone: boolean, EggUsed: boolean, ScareSeen: boolean},
 	Settings: {ReducedScares: boolean, MusicVolume: number, SfxVolume: number},
 	Receipts: {[string]: boolean}, -- purchase ids already granted
@@ -51,6 +52,7 @@ function DataTemplate.new(): Data
 		CaseAccessories = {},
 		Eggs = {},
 		Trackers = {},
+		ShopBought = {Rotation = 0, Items = {}},
 		Tutorial = {Step = 0, Complete = false, FreeBoxClaimed = false, ManualDone = false, EggUsed = false, ScareSeen = false},
 		Settings = {ReducedScares = false, MusicVolume = 1, SfxVolume = 1},
 		Receipts = {},

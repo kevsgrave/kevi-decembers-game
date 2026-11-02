@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Tutorial = require(Shared:WaitForChild("Tutorial"))
+local GuideArrow = require(Shared:WaitForChild("GuideArrow"))
 
 local player = Players.LocalPlayer
 local stepRemote = Net.Event("TutorialStep")
@@ -14,7 +15,6 @@ local doneRemote = Net.Event("TutorialDone")
 local camera = workspace.CurrentCamera
 
 local GOLD = Color3.fromRGB(255, 220, 70)
-local EDGE = 70 -- pixels the arrow keeps from the screen edge
 
 local gui = Instance.new("ScreenGui") gui.Name = "TutorialGuide" gui.ResetOnSpawn = false gui.DisplayOrder = 3
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
@@ -39,8 +39,7 @@ finishButton.Position = UDim2.new(0.5, 0, 0, 126) finishButton.Size = UDim2.from
 finishButton.Font = Enum.Font.FredokaOne finishButton.TextScaled = true finishButton.TextColor3 = Color3.new(1, 1, 1) finishButton.Text = "Finish" finishButton.Visible = false finishButton.Parent = gui
 Instance.new("UICorner", finishButton).CornerRadius = UDim.new(0, 12)
 
-local arrow = Instance.new("TextLabel") arrow.Name = "Arrow" arrow.AnchorPoint = Vector2.new(0.5, 0.5) arrow.Size = UDim2.fromOffset(72, 72)
-arrow.BackgroundTransparency = 1 arrow.Font = Enum.Font.GothamBlack arrow.TextScaled = true arrow.Text = "➤" arrow.TextColor3 = GOLD arrow.TextStrokeTransparency = 0 arrow.Visible = false arrow.Parent = gui
+local arrow = GuideArrow.new(gui, GOLD)
 
 -- the beam's far end, local to this client
 local anchor = Instance.new("Part") anchor.Name = "TutorialAnchor" anchor.Anchored = true anchor.CanCollide = false anchor.CanQuery = false anchor.CanTouch = false anchor.Transparency = 1 anchor.Size = Vector3.one
@@ -61,39 +60,18 @@ local function interfaceTarget(name)
 	return nil
 end
 
-local function placeArrow(position, angle)
-	local size = camera.ViewportSize
-	-- never offscreen, on any screen size
-	arrow.Position = UDim2.fromOffset(math.clamp(position.X, EDGE, math.max(EDGE, size.X - EDGE)), math.clamp(position.Y, EDGE, math.max(EDGE, size.Y - EDGE)))
-	arrow.Rotation = angle
-	arrow.Visible = true
-end
-
 RunService.RenderStepped:Connect(function()
 	if not state then return end
 	if state.ui then
 		local target = interfaceTarget(state.ui)
-		if target then placeArrow(target, if state.ui == "hotbar" then 90 else 180) else arrow.Visible = false end
+		if target then arrow:pointAtScreen(target, if state.ui == "hotbar" then 90 else 180) else arrow:hide() end
 		return
 	end
 	if not state.position then
-		arrow.Visible = false
+		arrow:hide()
 		return
 	end
-	local screen, onScreen = camera:WorldToViewportPoint(state.position)
-	if onScreen and screen.Z > 0 then
-		local bob = math.sin(os.clock() * 5) * 8
-		placeArrow(Vector2.new(screen.X, screen.Y - 60 + bob), 90)
-	else
-		-- behind or off to the side: point from the screen's centre toward it
-		local middle = camera.ViewportSize / 2
-		local toward = Vector2.new(screen.X, screen.Y) - middle
-		if screen.Z < 0 then toward = -toward end
-		if toward.Magnitude < 1 then toward = Vector2.new(0, 1) end
-		local unit = toward.Unit
-		local reach = math.min(middle.X - EDGE, middle.Y - EDGE)
-		placeArrow(middle + unit * reach, math.deg(math.atan2(unit.Y, unit.X)))
-	end
+	arrow:pointAt(state.position)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	local rootAttachment = root and root:FindFirstChild("RootAttachment")
 	beam.Attachment0 = rootAttachment
@@ -133,7 +111,7 @@ stepRemote.OnClientEvent:Connect(function(next)
 	if next.id == "none" then
 		state = nil
 		caption.Visible = false
-		arrow.Visible = false
+		arrow:hide()
 		finishButton.Visible = false
 		beam.Enabled = false
 		highlight.Enabled = false
@@ -154,7 +132,7 @@ stepRemote.OnClientEvent:Connect(function(next)
 	end
 	highlight.Adornee = next.target
 	highlight.Enabled = next.target ~= nil
-	if next.id == "done" then arrow.Visible = false state.position = nil end
+	if next.id == "done" then arrow:hide() state.position = nil end
 end)
 
 finishButton.Activated:Connect(function()
