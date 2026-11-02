@@ -1,4 +1,4 @@
--- Jumpscare RNG: 8 plots in a ring around a hub. Each player gets a plot when their save loads.
+-- Jumpscare RNG: 8 plots in a ring around a hub. Players spawn in the hub and claim a free plot at its gate.
 -- Hub egg -> saved inventory -> place in a showcase on your plot -> timed scares -> Fear -> rebirth
 -- The server owns every outcome; prompts and the rebirth remote are rate limited and distance checked.
 local Players = game:GetService("Players")
@@ -16,6 +16,7 @@ local RateLimiter = require(script.Parent.RateLimiter)
 local GuestKids = require(script.Parent.GuestKids)
 local RoomStyles = require(script.Parent.RoomStyles)
 local PlotFrame = require(script.Parent.PlotFrame)
+local PlotClaims = require(script.Parent.PlotClaims)
 
 local GameService = {}
 
@@ -29,9 +30,10 @@ local popupRemote, rebirthRemote -- created in Start, from one list
 local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
 local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
 local allowRebirth = RateLimiter.new(Config.LIMITS.rebirth.capacity, Config.LIMITS.rebirth.refillPerSecond)
+local allowClaim = RateLimiter.new(Config.LIMITS.claim.capacity, Config.LIMITS.claim.refillPerSecond)
 
-local plotOwner = {} -- [plot Model] = player
-local plotOf = {} -- [player] = plot Model
+local claims = PlotClaims.new()
+local plotOf = claims.plotOf -- [player] = plot Model
 local lastManual = {} -- [player] = os.clock() of their last manual scare
 
 local function bedroomsOf(player)
@@ -56,6 +58,13 @@ local function near(player, part, maxDistance)
 end
 
 local function popup(player, msg) popupRemote:FireClient(player, msg) end
+
+-- visitors may tour any plot, but only the owner can use it
+local function ownedOrWarn(player, inst)
+	if owns(player, inst) then return true end
+	popup(player, "This isn't your plot. You can look around, but only its owner can use it.")
+	return false
+end
 
 local function setFear(player, d, value)
 	d.Fear = math.clamp(math.floor(value), 0, Config.MAX_FEAR)
@@ -218,6 +227,10 @@ local function refreshLocks(player)
 		b.Lock.Transparency = open and 1 or 0.1
 		b.Lock.CanCollide = not open
 		b.Lock.SurfaceGui.Enabled = not open
+		if not open then
+			local more = b:GetAttribute("Index") - unlocked
+			b.Lock.SurfaceGui.Text.Text = "🔒 Rebirth " .. more .. " more time" .. (more == 1 and "" or "s") .. " to unlock"
+		end
 		b.ShowcaseLid.Info.Enabled = open
 		b.CrawlHole.ScarePrompt.Enabled = open
 		b.ShowcaseGlass.PlacePrompt.Enabled = open
@@ -285,7 +298,7 @@ end
 
 -- display case prompt: place the held (or first unplaced) monster, or pick the current one back up
 local function useShowcase(player, b)
-	if not allowShowcase(player) or not owns(player, b) then return end
+	if not allowShowcase(player) or not ownedOrWarn(player, b) then return end
 	local d = data(player)
 	local index = b:GetAttribute("Index")
 	if not d or index > Config.unlockedBedrooms(d.Rebirths) or not near(player, b.ShowcaseGlass, b.ShowcaseGlass.PlacePrompt.MaxActivationDistance) then return end
@@ -319,7 +332,7 @@ local function useShowcase(player, b)
 end
 
 local function manualScare(player, b)
-	if not owns(player, b) or not data(player) or not b:FindFirstChild("Guest") then return end
+	if not ownedOrWarn(player, b) or not data(player) or not b:FindFirstChild("Guest") then return end
 	if not near(player, b.CrawlHole, b.CrawlHole.ScarePrompt.MaxActivationDistance) then return end
 	if lastManual[player] and os.clock() - lastManual[player] < Config.MANUAL_COOLDOWN then return end
 	lastManual[player] = os.clock()
@@ -337,21 +350,30 @@ local function sendHome(player)
 	if plot and char then char:PivotTo(plot.SpawnPoint.CFrame + Vector3.new(0, 3, 0)) end
 end
 
--- plots are empty until a player's save loads; then the first free one is theirs: bedrooms copied in, placed monsters back.
--- (The vault's tycoon build does the same: assign on profile load, never on PlayerAdded.)
-local function claim(player)
-	if plotOf[player] or player.Parent ~= Players then return end
+local function setClaimPad(plot, free)
+	local pad = plot.ClaimPad
+	pad.Transparency = free and 0.2 or 1
+	pad.ClaimPrompt.Enabled = free
+	pad.ClaimLabel.Enabled = free
+end
+
+-- plots stay empty until claimed at the gate's pad; then the bedrooms are copied in and placed monsters come back.
+-- The save must have loaded first, so nobody can own a plot they can't save.
+local function claim(player, plot)
+	if not allowClaim(player) or player.Parent ~= Players then return end
 	local d = data(player)
-	if not d then return end
-	local plot
-	for _, p in ipairs(plotsFolder:GetChildren()) do
-		if p:IsA("Model") and not plotOwner[p] then plot = p break end
-	end
-	if not plot then
-		popup(player, "All plots are taken: you are visiting. Your progress is safe.")
+	if not d then
+		popup(player, "Still loading your progress, try again in a moment")
 		return
 	end
-	plotOwner[plot], plotOf[player] = player, plot
+	if not near(player, plot.ClaimPad, plot.ClaimPad.ClaimPrompt.MaxActivationDistance) then return end
+	-- no yields from the checks above to here, so two players can't both win this plot
+	local won, why = claims:claim(plot, player)
+	if not won then
+		popup(player, why == "already" and "You already have a plot" or "Someone just claimed this plot")
+		return
+	end
+	setClaimPad(plot, false)
 	local frame = PlotFrame.of(plot)
 	for _, child in ipairs(template:GetChildren()) do
 		local copy = child:Clone()
@@ -375,16 +397,11 @@ local function claim(player)
 end
 
 local function unclaim(leaving)
-	local plot = plotOf[leaving]
-	plotOf[leaving] = nil
+	local plot = claims:release(leaving)
 	if not plot then return end
-	plotOwner[plot] = nil
 	plot.Contents:ClearAllChildren()
 	setLabel(plot.OwnerSign, "Free plot")
-	-- a visitor who had no plot gets this one
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= leaving and data(p) and not plotOf[p] then claim(p) break end
-	end
+	setClaimPad(plot, true)
 end
 
 -- RemoteFunction: returns (ok, message) for the confirm dialog; takes no arguments
@@ -417,8 +434,7 @@ local function onLoaded(profile)
 		task.defer(syncTools, player)
 		task.defer(sendHome, player)
 	end)
-	if profile.Unsaved then popup(player, "Studio test: progress will not be saved") end
-	claim(player)
+	popup(player, (profile.Unsaved and "Studio test: progress will not be saved. " or "") .. "Walk to a free plot and claim it at the green pad by its gate.")
 end
 
 function GameService.Start()
@@ -435,7 +451,11 @@ function GameService.Start()
 	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")
 	if odds then odds.Text.Text = "Odds\n" .. Config.oddsText() end
 	for _, plot in ipairs(plotsFolder:GetChildren()) do
-		if plot:IsA("Model") then setLabel(plot.OwnerSign, "Free plot") end
+		if plot:IsA("Model") then
+			setLabel(plot.OwnerSign, "Free plot")
+			setClaimPad(plot, true)
+			plot.ClaimPad.ClaimPrompt.Triggered:Connect(function(player) claim(player, plot) end)
+		end
 	end
 	PlayerData.OnLoaded(onLoaded)
 	Players.PlayerRemoving:Connect(function(player)

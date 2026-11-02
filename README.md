@@ -33,7 +33,9 @@ The place file is `JumpscareRNG.rbxl`. The scripts are kept as source here, laid
 - `src/ServerStorage/ConfigTests.luau`: config tests, run from the Studio command bar: `print(require(game.ServerStorage.ConfigTests)())`.
 - `src/ReplicatedStorage/Shared/JeffRig.luau` + `JeffAnim.luau`: Jeff built from `art/monsters/jeff/jeff.blend`, his scare played on each client.
 - `src/ServerScriptService/Server/Main.server.luau`: the only server Script.
-- `src/ServerScriptService/Server/GameService.luau`: plot claiming, hatching into the saved inventory, placing monsters, scares, bedroom tier rerolls, rebirth.
+- `src/ServerScriptService/Server/PlotClaims.luau`: who owns which plot. `src/ReplicatedStorage/Shared/PlotLayout.luau`: bedroom numbers and floors.
+- `src/ServerStorage/PlotTests.luau`: plot and room checks, run from the Studio command bar: `print(require(game.ServerStorage.PlotTests)())`.
+- `src/ServerScriptService/Server/GameService.luau`: plot claiming at each gate, hatching into the saved inventory, placing monsters, scares, bedroom tier rerolls, rebirth.
 - `src/ServerScriptService/Server/PlayerData.luau`, `DataTemplate.luau`, `RateLimiter.luau`: session-locked saving and rate limits (from the vault's "Saved Inventory End to End").
 - `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button with a confirm step, popups.
 - `src/StarterPlayerScripts/MonsterAnimator.client.luau`: plays Jeff's scare when the server signals one.

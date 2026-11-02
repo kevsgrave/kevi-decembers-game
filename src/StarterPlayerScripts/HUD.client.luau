@@ -98,13 +98,18 @@ fear.Changed:Connect(refresh)
 player:GetAttributeChangedSignal("RebirthCost"):Connect(refresh)
 refresh()
 
-rebirthBtn.Activated:Connect(function()
+local function askRebirth()
 	local cost = player:GetAttribute("RebirthCost") or 0
 	if cost < 0 then show("All bedrooms unlocked") return end
 	local rebirths = player.leaderstats:WaitForChild("Rebirths").Value
 	body.Text = string.format("Rebirth for %s Fear?\nYour Fear goes back to 0. You keep your monsters, unlock a bedroom and earn x%s Fear.", Config.short(cost), tostring(Config.rebirthMult(rebirths + 1)))
 	dialog.Visible = true
 	GuiService.SelectedObject = no
+end
+rebirthBtn.Activated:Connect(askRebirth)
+-- the rebirth station in the hub opens the same dialog; matched by name because streaming may not have loaded the part yet
+game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt)
+	if prompt.Name == "RebirthPrompt" then askRebirth() end
 end)
 no.Activated:Connect(function() dialog.Visible = false end)
 

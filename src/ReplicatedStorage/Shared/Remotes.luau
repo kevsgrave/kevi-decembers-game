@@ -26,7 +26,6 @@ Remotes.List = {
 	{name = "Popup", kind = "Event", dir = "s2c", args = {"message"}, status = "live", phase = 0},
 	{name = "Rebirth", kind = "Function", dir = "c2s", args = {}, status = "live", phase = 0},
 
-	{name = "ClaimPlot", kind = "Function", dir = "c2s", args = {"id"}, status = "planned", phase = 2},
 	{name = "PlaceMonster", kind = "Function", dir = "c2s", args = {"id", "id"}, status = "planned", phase = 3},
 	{name = "PickUpMonster", kind = "Function", dir = "c2s", args = {"id"}, status = "planned", phase = 3},
 	{name = "SetHeldMonster", kind = "Event", dir = "c2s", args = {"id"}, status = "planned", phase = 3},

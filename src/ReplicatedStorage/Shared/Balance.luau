@@ -31,6 +31,7 @@ return {
 		hatch = {capacity = P(3), refillPerSecond = P(1.5)},
 		showcase = {capacity = P(4), refillPerSecond = P(2)},
 		rebirth = {capacity = P(2), refillPerSecond = P(0.5)},
+		claim = {capacity = P(3), refillPerSecond = P(1)},
 	},
 
 	-- least rare first; from Tiers For Monsters. Secret has no numbers in the notes.
@@ -109,6 +110,7 @@ return {
 		bedroomsPerFloor = C(6),
 		bedroomsPerRebirth = C(1),
 		floorCap = P(3),
+		floorHeight = P(32, "studs between floors, clear of the gable roofs"),
 		costBase = P(5000, "cost = costBase * (rebirths + 1) ^ costExponent"),
 		costExponent = P(2),
 		multPerRebirth = P(0.5, "multiplier = 1 + multPerRebirth * rebirths"),

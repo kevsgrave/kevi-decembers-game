@@ -169,6 +169,27 @@ end
 
 --------------------------------------------------------------------------- plots
 
+-- the glowing pad at a plot's gate where a player claims it; GameService hides it while the plot is owned
+local function claimPad(m, frame)
+	local old = m:FindFirstChild("ClaimPad")
+	if old then old:Destroy() end
+	local pad = P(m, "ClaimPad", Vector3.new(10, 0.2, 8), frame * CFrame.new(0, 2.4, -68), Color3.fromRGB(90, 255, 130), Enum.Material.Neon, {CanCollide = false, CanTouch = false}) -- just above the carpet
+	local prompt = Instance.new("ProximityPrompt") prompt.Name = "ClaimPrompt" prompt.ActionText = "Claim Plot" prompt.ObjectText = "Free plot"
+	prompt.HoldDuration = 0.3 prompt.MaxActivationDistance = 12 prompt.RequiresLineOfSight = false prompt.Parent = pad
+	local bb = Instance.new("BillboardGui") bb.Name = "ClaimLabel" bb.Size = UDim2.fromScale(14, 3) bb.StudsOffset = Vector3.new(0, 6, 0) bb.MaxDistance = 150 bb.Parent = pad
+	local t = Instance.new("TextLabel") t.Name = "Text" t.Size = UDim2.fromScale(1, 1) t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne t.TextScaled = true
+	t.TextColor3 = Color3.fromRGB(120, 255, 140) t.Text = "Free plot: claim here" t.Parent = bb stroke(t, 4)
+	return pad
+end
+
+-- adds the pads to plots that are already built, without rebuilding them
+function MapBuilder.claimPads()
+	for i = 1, MapBuilder.PLOT_COUNT do
+		claimPad(workspace.Plots["Plot" .. i], ringCF(MapBuilder.RING_RADIUS, plotAngle(i)))
+	end
+	return "claim pads: " .. MapBuilder.PLOT_COUNT
+end
+
 -- one plot shell in its own frame (local origin = the old single plot's origin; front toward local -Z)
 local function plotShell(parent, i)
 	local frame = ringCF(MapBuilder.RING_RADIUS, plotAngle(i))
@@ -220,6 +241,7 @@ local function plotShell(parent, i)
 	-- where the owner arrives: just inside the arch, facing their bedrooms
 	local spawn = P(m, "SpawnPoint", Vector3.new(4, 1, 4), L(0, 2.6, -56) * CFrame.Angles(0, math.pi, 0), Color3.new(1, 1, 1), nil, {Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false})
 	spawn.CFrame = CFrame.lookAt(spawn.Position, (L(0, 2.6, 0)).Position)
+	claimPad(m, frame)
 	local contents = Instance.new("Folder") contents.Name = "Contents" contents.Parent = m
 	m.WorldPivot = frame
 	m.Parent = parent
@@ -299,13 +321,70 @@ function MapBuilder.hub()
 		local l = Instance.new("PointLight") l.Color = Color3.fromRGB(160, 255, 255) l.Range = 16 l.Brightness = 0.8 l.Shadows = false l.Parent = g
 	end
 
-	-- the spawn is only used before a player's plot is assigned (a moment after joining)
+	-- the hidden lobby spawn: players start here until they claim a plot
 	local sp = workspace:FindFirstChildOfClass("SpawnLocation")
 	if sp then
 		sp.CFrame = CFrame.new(0, 1.2, -24) sp.Size = Vector3.new(6, 1, 6)
 		sp.Transparency = 1 sp.CanCollide = false
 	end
 	return "hub built: " .. #f:GetDescendants() .. " instances"
+end
+
+--------------------------------------------------------------------------- stations
+
+-- a small cartoon ghost made of parts, looking at the hub
+local function ghostFigure(parent, pos)
+	local m = Instance.new("Model") m.Name = "Ghost"
+	local cf = CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0))
+	local white = Color3.fromRGB(235, 245, 255)
+	local function part(size, offset, shape, color)
+		deco(P(m, "Part", size, cf * offset, color, Enum.Material.SmoothPlastic, {Shape = shape, CanCollide = false, Transparency = 0.1}))
+	end
+	part(Vector3.new(3.2, 3.2, 3.2), CFrame.new(0, 1.2, 0), Enum.PartType.Ball, white)
+	part(Vector3.new(2.6, 3.2, 3.2), CFrame.new(0, -0.2, 0) * CFrame.Angles(0, 0, math.pi / 2), Enum.PartType.Cylinder, white)
+	for _, x in ipairs({-0.6, 0.6}) do
+		part(Vector3.new(0.6, 0.6, 0.6), CFrame.new(x, 1.5, -1.4), Enum.PartType.Ball, Color3.fromRGB(25, 15, 45))
+	end
+	m.Parent = parent
+end
+
+-- Parts and existing kit models only. Added beside the hub so the hub itself doesn't need rebuilding.
+function MapBuilder.stations()
+	local f = folder("Stations")
+	local R = MapBuilder.PLAZA_RADIUS
+	local WOOD = Color3.fromRGB(80, 50, 35)
+
+	-- fusing opens in Phase 7: the cauldron is its station, and the sign says so plainly
+	local fuseCF = ringCF(R - 12, 202.5, 0.6) * CFrame.new(0, 0, 3.5)
+	local fuseSign = deco(P(f, "FusingSign", Vector3.new(10, 2.4, 0.4), fuseCF * CFrame.new(0, 7.5, 0), WOOD, Enum.Material.WoodPlanks))
+	label(fuseSign, Enum.NormalId.Front, "Fusing - opening soon", Color3.fromRGB(255, 200, 70))
+	for _, x in ipairs({-4.2, 4.2}) do
+		deco(P(f, "FusingPost", Vector3.new(0.5, 7.5, 0.5), fuseCF * CFrame.new(x, 3.75, 0.3), Color3.fromRGB(70, 45, 30), Enum.Material.Wood))
+	end
+
+	-- rebirth station: stand on the glowing circle to open the same confirm dialog as the HUD button
+	local rebirthCF = ringCF(32, 112.5, 0.6)
+	disc(f, "RebirthBase", 5.5, 0.4, (rebirthCF * CFrame.new(0, 0.2, 0)).Position, STONE_LIGHT, Enum.Material.Slate)
+	local pad = disc(f, "RebirthPad", 4, 0.2, (rebirthCF * CFrame.new(0, 0.45, 0)).Position, Color3.fromRGB(170, 90, 255), Enum.Material.Neon)
+	pad.CanCollide = false
+	local prompt = Instance.new("ProximityPrompt") prompt.Name = "RebirthPrompt" prompt.ActionText = "Rebirth" prompt.ObjectText = "Rebirth Station"
+	prompt.HoldDuration = 0.3 prompt.MaxActivationDistance = 10 prompt.RequiresLineOfSight = false prompt.Parent = pad
+	local glow = Instance.new("PointLight") glow.Color = Color3.fromRGB(190, 120, 255) glow.Range = 18 glow.Brightness = 1.2 glow.Shadows = false glow.Parent = pad
+	for _, x in ipairs({-6, 6}) do kit("StonePillar", f, rebirthCF * CFrame.new(x, 0, 2), 10) end
+	local beam = P(f, "RebirthSign", Vector3.new(13, 2.4, 0.6), rebirthCF * CFrame.new(0, 10.5, 2), WOOD, Enum.Material.WoodPlanks)
+	deco(beam)
+	label(beam, Enum.NormalId.Front, "Rebirth Station", Color3.fromRGB(215, 170, 255))
+
+	-- floating ghosts over the plaza and one at each plot's gate
+	for k, angle in ipairs({65, 150, 245, 290, 335}) do -- clear of the shop, rebirth, odds and fusing signs
+		local a = math.rad(angle)
+		ghostFigure(f, Vector3.new(math.sin(a) * 30, 12 + (k % 3) * 2, math.cos(a) * 30))
+	end
+	for i = 1, MapBuilder.PLOT_COUNT do
+		local cf = ringCF(MapBuilder.RING_RADIUS, plotAngle(i))
+		ghostFigure(f, (cf * CFrame.new(-16, 13, -66)).Position)
+	end
+	return "stations: " .. #f:GetChildren() .. " items"
 end
 
 --------------------------------------------------------------------------- paths

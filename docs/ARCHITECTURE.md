@@ -19,10 +19,12 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Server/PlayerData.luau`, `DataTemplate.luau` | `...Server.*` | Session-locked saves, schema, migrations |
 | `.../Server/RateLimiter.luau` | `...Server.RateLimiter` | Token buckets |
 | `.../Server/GuestKids.luau`, `RoomStyles.luau`, `PlotFrame.luau` | `...Server.*` | Guests, room looks, plot space |
-| `src/ServerStorage/ConfigTests.luau` | `ServerStorage.ConfigTests` | Config tests, command bar only |
+| `.../Shared/PlotLayout.luau` | `...Shared.PlotLayout` | Bedroom numbers, floors and heights |
+| `.../Server/PlotClaims.luau` | `...Server.PlotClaims` | Who owns which plot |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
-| not in the repo | `Workspace`, `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
+| not in the repo | `Workspace` (including `Stations`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
 
 Startup order: `Main` requires `Config` (Balance is validated here, and a failure stops the game), starts `GameService` (creates live remotes), then starts `PlayerData`.
 
@@ -56,7 +58,6 @@ Client requests with several steps carry a request id (the last `id` argument in
 |---|---|---|---|---|
 | Popup | Event | server to client | message | live |
 | Rebirth | Function | client to server | none | live |
-| ClaimPlot | Function | client to server | plotId | Phase 2 |
 | PlaceMonster | Function | client to server | slotId, monsterUid | Phase 3 |
 | PickUpMonster | Function | client to server | slotId | Phase 3 |
 | SetHeldMonster | Event | client to server | monsterUid | Phase 3 |
@@ -76,7 +77,15 @@ Client requests with several steps carry a request id (the last `id` argument in
 | FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
-Claiming, hatching, placing and manual scares are ProximityPrompts today (server-side `Triggered`, no remote). Their phases decide whether to keep the prompt or move to the remote above.
+Claiming stays a ProximityPrompt (server-side `Triggered`), so it needs no remote. Hatching, placing and manual scares are prompts today too; their phases decide whether to keep the prompt or move to the remote above.
+
+## Plots and floors
+
+`PlotClaims` owns who has which plot: `Unclaimed -> Claimed -> Released`, with no yields, so two requests can't both win. A player claims at a plot's `ClaimPad`; leaving releases it and empties `Contents`.
+
+`PlotLayout` maps bedroom numbers to floors: 1-6 is floor 1, 7-12 is floor 2, and odd bays are on the left. Saves key placements by bedroom number, so a slot stays stable on any plot. A floor is meant to be a copy of `PlotTemplate.Bedrooms` lifted by `PlotLayout.floorHeight(floor)`, renumbered with `bedroomIndex`. Floor 2 is built in Phase 7; `Config.BEDROOM_COUNT` still caps the game at 6 rooms.
+
+`MapBuilder.claimPads()` and `MapBuilder.stations()` add the pads, rebirth station, fusing sign and ghosts without rebuilding the hub or plots. Re-running either replaces only what it made.
 
 ## Saved data, schema version 2
 
