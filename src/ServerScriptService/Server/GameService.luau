@@ -9,6 +9,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local JeffRig = require(Shared:WaitForChild("JeffRig"))
 local Net = require(Shared:WaitForChild("Net"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
+local DataTemplate = require(script.Parent.DataTemplate)
 local PlayerData = require(script.Parent.PlayerData)
 local RateLimiter = require(script.Parent.RateLimiter)
 local GuestKids = require(script.Parent.GuestKids)
@@ -24,9 +26,9 @@ local template = ServerStorage:WaitForChild("PlotTemplate")
 local rng = Random.new()
 local popupRemote, rebirthRemote -- created in Start, from one list
 
-local allowHatch = RateLimiter.new(3, 1.5)
-local allowShowcase = RateLimiter.new(4, 2)
-local allowRebirth = RateLimiter.new(2, 0.5)
+local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
+local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
+local allowRebirth = RateLimiter.new(Config.LIMITS.rebirth.capacity, Config.LIMITS.rebirth.refillPerSecond)
 
 local plotOwner = {} -- [plot Model] = player
 local plotOf = {} -- [player] = plot Model
@@ -147,6 +149,7 @@ local function pay(player, amount)
 	if not d then return end
 	amount = math.floor(amount * Config.rebirthMult(d.Rebirths))
 	setFear(player, d, d.Fear + amount)
+	d.TotalFearEarned = math.min(d.TotalFearEarned + amount, Config.MAX_FEAR)
 	popup(player, "+" .. Config.short(amount) .. " Fear")
 end
 
@@ -273,7 +276,8 @@ local function hatch(player)
 	local tier = Config.pickMonsterTier(rng:NextNumber(0, 100))
 	local uid = "m" .. d.NextUid
 	d.NextUid += 1
-	d.Monsters[uid] = {Kind = Config.MONSTER_KIND, Tier = tier.name}
+	d.Monsters[uid] = DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, rng:NextInteger(tier.min, tier.max), "egg")
+	d.Index[Config.MONSTER_KIND] = true
 	setFear(player, d, d.Fear - Config.EGG_COST)
 	syncTools(player)
 	popup(player, "You hatched a " .. tier.name .. " " .. Config.MONSTER_KIND .. "! Place him in a display case.")
@@ -386,7 +390,7 @@ end
 -- RemoteFunction: returns (ok, message) for the confirm dialog; takes no arguments
 local function rebirth(player, ...)
 	if not allowRebirth(player) then return false, "Slow down!" end
-	if select("#", ...) > 0 then return false, "Bad request" end
+	if not Remotes.checkArgs("Rebirth", ...) then return false, "Bad request" end
 	local d = data(player)
 	if not d then return false, "Still loading" end
 	if Config.unlockedBedrooms(d.Rebirths) >= Config.BEDROOM_COUNT then return false, "All bedrooms unlocked" end
@@ -418,9 +422,10 @@ local function onLoaded(profile)
 end
 
 function GameService.Start()
-	-- every remote this game uses, created by the server in one place
-	popupRemote = Net.Event("Popup")
-	rebirthRemote = Net.Function("Rebirth")
+	-- every live remote, created from the one list in Remotes
+	local remotes = Remotes.createLive(Net)
+	popupRemote = remotes.Popup
+	rebirthRemote = remotes.Rebirth
 	rebirthRemote.OnServerInvoke = rebirth
 
 	-- the hub egg: odds generated from Config, shown before anyone spends

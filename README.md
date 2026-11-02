@@ -26,8 +26,11 @@ Keep the claude-obsidian vault inside this repo (for example a `wiki/` folder) s
 
 The place file is `JumpscareRNG.rbxl`. The scripts are kept as source here, laid out the way the LihFolk vault's worked builds do:
 
-- `src/ReplicatedStorage/Shared/Config.luau`: odds, payouts, prices and rebirth math. The server rolls from it and the client only displays it. It checks itself at startup (odds total 100%).
-- `src/ReplicatedStorage/Shared/Net.luau`: creates every remote in one place (from the vault).
+- `src/ReplicatedStorage/Shared/Balance.luau`: every odd, payout and price, tagged confirmed or provisional. Change numbers here.
+- `src/ReplicatedStorage/Shared/ConfigValidator.luau`: refuses bad balance data at startup and lists every problem.
+- `src/ReplicatedStorage/Shared/Config.luau`: what the game reads from Balance. The server rolls from it and the client only displays it.
+- `src/ReplicatedStorage/Shared/Remotes.luau`: the list of remotes and their argument checks. `Net.luau` creates them (from the vault).
+- `src/ServerStorage/ConfigTests.luau`: config tests, run from the Studio command bar: `print(require(game.ServerStorage.ConfigTests)())`.
 - `src/ReplicatedStorage/Shared/JeffRig.luau` + `JeffAnim.luau`: Jeff built from `art/monsters/jeff/jeff.blend`, his scare played on each client.
 - `src/ServerScriptService/Server/Main.server.luau`: the only server Script.
 - `src/ServerScriptService/Server/GameService.luau`: plot claiming, hatching into the saved inventory, placing monsters, scares, bedroom tier rerolls, rebirth.
@@ -35,6 +38,8 @@ The place file is `JumpscareRNG.rbxl`. The scripts are kept as source here, laid
 - `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button with a confirm step, popups.
 - `src/StarterPlayerScripts/MonsterAnimator.client.luau`: plays Jeff's scare when the server signals one.
 - `tools/build_plot.luau`: rebuilds the map from the Studio command bar (empty plot in Workspace, claimed contents in `ServerStorage.PlotTemplate`).
+
+`docs/ARCHITECTURE.md` has the source tree, remotes, validation rules and save schema. `docs/phase1/AUDIT.md` compares the place with the master prompt.
 
 Saving in Studio needs Game Settings > Security > Enable Studio Access to API Services. Without it, Studio sessions play unsaved and say so. Studio saves use separate `STUDIO_` keys, so tests never touch live data.
 
