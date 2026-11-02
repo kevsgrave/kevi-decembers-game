@@ -146,7 +146,7 @@ function Inventory.snapshot(d)
 	for uid, m in d.Monsters do
 		table.insert(rows, {
 			uid = uid,
-			kind = m.Kind,
+			kind = Config.displayName(m.Kind),
 			tier = m.Tier,
 			baseFear = m.BaseFear,
 			size = m.Size,

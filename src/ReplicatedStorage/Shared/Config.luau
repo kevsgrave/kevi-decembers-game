@@ -97,6 +97,27 @@ function Config.pickMutation(r)
 	return nil
 end
 
+-- the roster, by id and by rarity, in the listed order
+Config.SPECIES = {}
+Config.SPECIES_BY_TIER = {}
+for _, m in B.monsters do
+	Config.SPECIES[m.id] = m
+	Config.SPECIES_BY_TIER[m.rarity] = Config.SPECIES_BY_TIER[m.rarity] or {}
+	table.insert(Config.SPECIES_BY_TIER[m.rarity], m)
+end
+
+-- a species within a rarity, each equally likely. r is a uniform number in [0, 1)
+function Config.pickSpecies(tierName, r)
+	local list = Config.SPECIES_BY_TIER[tierName]
+	return list[math.clamp(math.floor(r * #list) + 1, 1, #list)]
+end
+
+-- what players see: a species' name, or the kind itself for the stand-in
+function Config.displayName(kind)
+	local species = Config.SPECIES[kind]
+	return species and species.name or kind
+end
+
 -- each accessory box's contents, in order
 Config.BOX_ITEMS = {}
 for _, box in B.accessories.boxes do Config.BOX_ITEMS[box.id] = {} end

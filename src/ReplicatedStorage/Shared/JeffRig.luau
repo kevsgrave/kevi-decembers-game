@@ -139,6 +139,8 @@ local function along(path, dist)
 	return path[1], Vector3.zAxis
 end
 
+JeffRig.along = along
+
 -- walking pose `t` seconds into a walk along `path` (pass the path reversed to walk back)
 function JeffRig.walk(model, path, t, tl)
 	local pos, dir = along(path, t * tl.walkSpeed)

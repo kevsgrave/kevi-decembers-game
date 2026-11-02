@@ -7,6 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local UiFit = require(Shared:WaitForChild("UiFit"))
 
 local player = Players.LocalPlayer
 local changedRemote = Net.Event("InventoryChanged")
@@ -52,7 +53,8 @@ end
 local openButton = button("Open", gui, "Inventory", PANEL)
 openButton.AnchorPoint = Vector2.new(0, 0.5)
 openButton.Size = UDim2.fromOffset(150, 56)
-openButton.Position = UDim2.new(0, 16, 0.5, 92) -- under the rebirth button
+openButton.Position = UDim2.new(0, 16, 0.52, 0) -- under the rebirth button
+UiFit.scale(openButton)
 
 local panel = Instance.new("Frame") panel.Name = "Panel" panel.Visible = false
 panel.AnchorPoint = Vector2.new(0.5, 0.5) panel.Position = UDim2.fromScale(0.5, 0.5) panel.Size = UDim2.fromScale(0.92, 0.82)
@@ -246,11 +248,13 @@ local function renderIndex()
 	local found, total = 0, 0
 	-- the stand-in first, because it's the only monster hatches give until original models exist
 	local entries = {{id = Config.MONSTER_KIND, name = Config.MONSTER_KIND .. " (stand-in)", rarity = nil, known = index[Config.MONSTER_KIND]}}
+	-- once the roster is on, the stand-in leaves the list unless this player owns one
+	if Config.Balance.content.hatchRoster and not index[Config.MONSTER_KIND] then entries = {} end
 	for _, m in ipairs(Config.Balance.monsters) do
 		table.insert(entries, {id = m.id, name = m.name, rarity = m.rarity, baseFear = m.baseFear, concept = m.concept, known = index[m.id]})
 	end
 	for position, e in ipairs(entries) do
-		if position > 1 then
+		if e.rarity then
 			total += 1
 			if e.known then found += 1 end
 		end
@@ -273,7 +277,7 @@ local function renderIndex()
 		b.Position = UDim2.fromOffset(12, 36) b.Size = UDim2.new(1, -24, 0, 24)
 	end
 	title.Text = "Index " .. found .. " / " .. total
-	hint.Text = "Species can't be found until their original models exist. Hatches are Jeff for now."
+	hint.Text = if Config.Balance.content.hatchRoster then "Hatch eggs to discover every species" else "Species can't be found yet. Hatches are Jeff for now."
 end
 
 local function render()

@@ -42,7 +42,7 @@ return function(balance: any?, validator: any?, remotes: any?): string
 		check(`rarity {id} is {want[1]}-{want[2]} every {want[3]}s`, r.minFear == want[1] and r.maxFear == want[2] and r.scareSeconds == want[3])
 	end
 	check("seven rarities", #plain.rarities == 7)
-	check("42 species in the roster", #plain.monsters == 42)
+	check("42 species in the roster", #plain.monsters == 42 and plain.content.hatchRoster == false)
 	local perRarity = {}
 	for _, m in plain.monsters do perRarity[m.rarity] = (perRarity[m.rarity] or 0) + 1 end
 	check("every rarity has species", perRarity.Common == 8 and perRarity.Rare == 8 and perRarity.Epic == 7 and perRarity.Legendary == 6 and perRarity.Mythic == 5 and perRarity.SPOOKY == 5 and perRarity.Secret == 3)

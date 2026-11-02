@@ -40,14 +40,14 @@ The place file is `JumpscareRNG.rbxl`. The scripts are kept as source here, laid
 - `src/ServerScriptService/Server/Inventory.luau`: the rules for owned monsters, the hotbar and placing. `src/ServerStorage/InventoryTests.luau` tests them from the command bar.
 - `src/ServerScriptService/Server/ScareScheduler.luau`: runs every room's scares. `src/ReplicatedStorage/Shared/Payout.luau`: the Fear formula. `src/ServerStorage/ScareTests.luau` tests them from the command bar.
 - `src/ReplicatedStorage/Shared/Tutorial.luau`: the tutorial steps. `src/ServerStorage/TutorialTests.luau` tests them, with eggs and accessories.
-- `src/StarterPlayerScripts/`: `InventoryPanel` (monsters, items, index), `EggPanel`, `ShopPanel`, `ForgePanel`, `TutorialGuide`, `TrackerGuide`, `ManualScare`.
+- `src/StarterPlayerScripts/`: `InventoryPanel` (monsters, items, index), `EggPanel`, `ShopPanel`, `ForgePanel`, `SettingsPanel`, `TutorialGuide`, `TrackerGuide`, `ManualScare`.
 - `src/ServerScriptService/Server/Shop.luau`, `Tracker.luau`: the rotating shop and trackers. `src/ServerStorage/ShopTests.luau` tests them.
 - `src/ServerScriptService/Server/Fusion.luau`, `Rebirth.luau`, `PlotFloors.luau`: fusion, rebirth and upper floors. `src/ServerStorage/ProgressTests.luau` tests them.
 - `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button with a confirm step, popups.
 - `src/StarterPlayerScripts/MonsterAnimator.client.luau`: plays Jeff's scare when the server signals one.
 - `tools/build_plot.luau`: rebuilds the map from the Studio command bar (empty plot in Workspace, claimed contents in `ServerStorage.PlotTemplate`).
 
-`docs/spec/` is the design spec, with the owner's decisions in `OVERRIDES.md`. `docs/ARCHITECTURE.md` has the source tree, remotes, validation rules and save schema. Each phase's report is in `docs/phase*/`.
+`docs/phase8/` has the acceptance report, asset list and publish checklist. `docs/spec/` is the design spec, with the owner's decisions in `OVERRIDES.md`. `docs/ARCHITECTURE.md` has the source tree, remotes, validation rules and save schema. Each phase's report is in `docs/phase*/`.
 
 Saving in Studio needs Game Settings > Security > Enable Studio Access to API Services. Without it, Studio sessions play unsaved and say so. Studio saves use separate `STUDIO_` keys, so tests never touch live data.
 

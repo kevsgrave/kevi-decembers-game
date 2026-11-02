@@ -48,7 +48,8 @@ Remotes.List = {
 	{name = "HatchOwnedEgg", kind = "Function", dir = "c2s", args = {"id"}, status = "live", phase = 6},
 	{name = "HatchReveal", kind = "Event", dir = "s2c", args = {"state"}, status = "live", phase = 6},
 	{name = "FuseMonsters", kind = "Function", dir = "c2s", args = {"idList"}, status = "live", phase = 7},
-	{name = "SetSetting", kind = "Event", dir = "c2s", args = {"id", "boolean"}, status = "planned", phase = 8},
+	{name = "SetSetting", kind = "Event", dir = "c2s", args = {"id", "boolean"}, status = "live", phase = 8},
+	{name = "SetVolume", kind = "Event", dir = "c2s", args = {"id", "number"}, status = "live", phase = 8},
 }
 
 local byName = {}

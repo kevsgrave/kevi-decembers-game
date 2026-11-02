@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local Sounds = require(Shared:WaitForChild("Sounds"))
 
 local player = Players.LocalPlayer
 local getRemote = Net.Function("GetShop")
@@ -99,6 +100,7 @@ local function render()
 				return
 			end
 			if state then current = state end
+			if success then Sounds.play("buy") end
 			message.Text = if success then "Bought! Find it in your Inventory, under Items." else (REASONS[why] or "That didn't go through")
 			render()
 		end)

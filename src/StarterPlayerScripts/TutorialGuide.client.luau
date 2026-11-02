@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Tutorial = require(Shared:WaitForChild("Tutorial"))
 local GuideArrow = require(Shared:WaitForChild("GuideArrow"))
+local UiFit = require(Shared:WaitForChild("UiFit"))
 
 local player = Players.LocalPlayer
 local stepRemote = Net.Event("TutorialStep")
@@ -21,7 +22,9 @@ gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local caption = Instance.new("Frame") caption.Name = "Caption" caption.AnchorPoint = Vector2.new(0.5, 0)
-caption.Position = UDim2.new(0.5, 0, 0, 8) caption.Size = UDim2.fromScale(0.9, 0.16) caption.BackgroundColor3 = Color3.fromRGB(35, 22, 70) caption.Visible = false caption.Parent = gui
+-- touch screens have Fear in the top corner, so the caption sits under it
+local touchOffset = if game:GetService("UserInputService").TouchEnabled then 66 else 0
+caption.Position = UDim2.new(0.5, 0, 0, 8 + touchOffset) caption.Size = UDim2.fromScale(0.9, 0.16) caption.BackgroundColor3 = Color3.fromRGB(35, 22, 70) caption.Visible = false caption.Parent = gui
 Instance.new("UICorner", caption).CornerRadius = UDim.new(0, 14)
 local border = Instance.new("UIStroke") border.Color = GOLD border.Thickness = 3 border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border border.Parent = caption
 local cap = Instance.new("UISizeConstraint") cap.MaxSize = Vector2.new(640, 110) cap.Parent = caption
@@ -35,9 +38,10 @@ local stepText = label("Step", UDim2.fromScale(0.03, 0.05), UDim2.fromScale(0.94
 local bodyText = label("Body", UDim2.fromScale(0.03, 0.31), UDim2.fromScale(0.94, 0.62), Color3.new(1, 1, 1))
 
 local finishButton = Instance.new("TextButton") finishButton.Name = "Finish" finishButton.AnchorPoint = Vector2.new(0.5, 0)
-finishButton.Position = UDim2.new(0.5, 0, 0, 126) finishButton.Size = UDim2.fromOffset(190, 52) finishButton.BackgroundColor3 = Color3.fromRGB(60, 200, 90)
+finishButton.Position = UDim2.new(0.5, 0, 0, 126 + touchOffset) finishButton.Size = UDim2.fromOffset(190, 52) finishButton.BackgroundColor3 = Color3.fromRGB(60, 200, 90)
 finishButton.Font = Enum.Font.FredokaOne finishButton.TextScaled = true finishButton.TextColor3 = Color3.new(1, 1, 1) finishButton.Text = "Finish" finishButton.Visible = false finishButton.Parent = gui
 Instance.new("UICorner", finishButton).CornerRadius = UDim.new(0, 12)
+UiFit.scale(finishButton)
 
 local arrow = GuideArrow.new(gui, GOLD)
 
@@ -80,9 +84,10 @@ end)
 
 -- after the tutorial, the steps can be read again. This only shows text and never talks to the server, so no reward can repeat.
 local replayButton = Instance.new("TextButton") replayButton.Name = "HowToPlay" replayButton.AnchorPoint = Vector2.new(0, 0.5)
-replayButton.Position = UDim2.new(0, 16, 0.5, 156) replayButton.Size = UDim2.fromOffset(150, 44) replayButton.BackgroundColor3 = Color3.fromRGB(60, 40, 110)
+replayButton.Position = UDim2.new(0, 16, 0.63, 0) replayButton.Size = UDim2.fromOffset(150, 44) replayButton.BackgroundColor3 = Color3.fromRGB(60, 40, 110)
 replayButton.Font = Enum.Font.FredokaOne replayButton.TextScaled = true replayButton.TextColor3 = Color3.new(1, 1, 1) replayButton.Text = "How to play" replayButton.Visible = false replayButton.Parent = gui
 Instance.new("UICorner", replayButton).CornerRadius = UDim.new(0, 10)
+UiFit.scale(replayButton)
 local replayIndex = nil
 
 local function showReplay()

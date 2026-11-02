@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
 local PlotLayout = require(Shared:WaitForChild("PlotLayout"))
+local UiFit = require(Shared:WaitForChild("UiFit"))
 
 local player = Players.LocalPlayer
 local popupRemote = Net.Event("Popup")
@@ -51,12 +52,20 @@ local function button(name, label, color, size, pos, anchor, parent)
 	return b
 end
 
-local fearLabel = text("Fear", UDim2.fromOffset(380, 80), UDim2.new(0, 16, 1, -16), Vector2.new(0, 1))
-fearLabel.TextXAlignment = Enum.TextXAlignment.Left
+-- on touch screens the thumbstick and jump button take the bottom corners, so Fear goes top right
+local touch = game:GetService("UserInputService").TouchEnabled
+local fearLabel = if touch
+	then text("Fear", UDim2.fromOffset(300, 56), UDim2.new(1, -16, 0, 2), Vector2.new(1, 0))
+	else text("Fear", UDim2.fromOffset(380, 80), UDim2.new(0, 16, 1, -16), Vector2.new(0, 1))
+fearLabel.TextXAlignment = if touch then Enum.TextXAlignment.Right else Enum.TextXAlignment.Left
+UiFit.scale(fearLabel)
 
 -- an estimate only: Fear itself arrives when each scare finishes
-local rateLabel = text("Rate", UDim2.fromOffset(300, 30), UDim2.new(0, 16, 1, -98), Vector2.new(0, 1))
-rateLabel.TextXAlignment = Enum.TextXAlignment.Left
+local rateLabel = if touch
+	then text("Rate", UDim2.fromOffset(300, 26), UDim2.new(1, -16, 0, 40), Vector2.new(1, 0))
+	else text("Rate", UDim2.fromOffset(300, 30), UDim2.new(0, 16, 1, -98), Vector2.new(0, 1))
+rateLabel.TextXAlignment = fearLabel.TextXAlignment
+UiFit.scale(rateLabel)
 rateLabel.TextColor3 = Color3.fromRGB(190, 255, 190)
 local function showRate()
 	local rate = player:GetAttribute("FearPerSecond") or 0
@@ -70,7 +79,8 @@ local popup = text("Popup", UDim2.fromOffset(500, 44), UDim2.new(0.5, 0, 0.2, 0)
 popup.TextColor3 = Color3.new(1, 1, 1) popup.TextTransparency = 1
 local popupStroke = popup.UIStroke popupStroke.Transparency = 1
 
-local rebirthBtn = button("Rebirth", "", CRIMSON, UDim2.fromOffset(150, 110), UDim2.new(0, 16, 0.5, 0), Vector2.new(0, 0.5))
+local rebirthBtn = button("Rebirth", "", CRIMSON, UDim2.fromOffset(150, 110), UDim2.new(0, 16, 0.36, 0), Vector2.new(0, 0.5))
+UiFit.scale(rebirthBtn)
 
 -- confirm dialog: a rebirth spends a lot of Fear, so it is never one tap
 local dialog = Instance.new("Frame") dialog.Name = "RebirthConfirm" dialog.Visible = false
@@ -79,6 +89,7 @@ dialog.BackgroundColor3 = Color3.fromRGB(60, 40, 110) dialog.Parent = gui
 Instance.new("UICorner", dialog).CornerRadius = UDim.new(0, 18)
 stroke(dialog, 4, true)
 local sizeCap = Instance.new("UISizeConstraint") sizeCap.MaxSize = Vector2.new(420, 240) sizeCap.Parent = dialog
+UiFit.scale(dialog)
 local body = text("Body", UDim2.new(1, -32, 0, 130), UDim2.new(0.5, 0, 0, 16), Vector2.new(0.5, 0), dialog)
 body.TextColor3 = Color3.new(1, 1, 1)
 local yes = button("Yes", "Rebirth", LIME, UDim2.fromOffset(170, 64), UDim2.new(0.5, -8, 1, -16), Vector2.new(1, 1), dialog)

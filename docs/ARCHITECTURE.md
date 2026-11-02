@@ -25,10 +25,12 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Server/ScareScheduler.luau` | `...Server.ScareScheduler` | One scheduler for every room's scares |
 | `.../Shared/Payout.luau` | `...Shared.Payout` | The Fear formula |
 | `.../Shared/Tutorial.luau` | `...Shared.Tutorial` | The tutorial steps and rules |
-| `.../Shared/GuideArrow.luau` | `...Shared.GuideArrow` | The on-screen arrow |
+| `.../Shared/GuideArrow.luau`, `UiFit.luau` | `...Shared.*` | The on-screen arrow, screen fitting |
+| `.../Shared/MonsterRig.luau`, `Sounds.luau` | `...Shared.*` | Species models and placeholders, sound list |
+| `.../Server/Premium.luau` | `...Server.Premium` | Robux receipts, unused until real products exist |
 | `.../Server/Shop.luau`, `Tracker.luau`, `AccessoryLook.luau` | `...Server.*` | Shop rules, tracker rules, accessory and mutation looks |
 | `.../Server/Fusion.luau`, `Rebirth.luau`, `PlotFloors.luau` | `...Server.*` | Fusion and rebirth rules, upper floor structure |
-| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau`, `ShopTests.luau`, `ProgressTests.luau` | `ServerStorage.*` | Tests, command bar only |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau`, `ShopTests.luau`, `ProgressTests.luau`, `ContentTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
 | not in the repo | `Workspace` (including `Stations` and `DigNodes`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
@@ -87,7 +89,8 @@ Client requests with several steps carry a request id (the last `id` argument in
 | HatchOwnedEgg | Function | client to server | eggUid | live |
 | HatchReveal | Event | server to client | state | live |
 | FuseMonsters | Function | client to server | monsterUids | live |
-| SetSetting | Event | client to server | key, value | Phase 8 |
+| SetSetting | Event | client to server | key, on | live |
+| SetVolume | Event | client to server | key, value | live |
 
 Plots are assigned by the server, so they need no remote. Placing, picking up, starting a manual scare and claiming the free box are ProximityPrompts (server-side `Triggered`), so they need none either.
 
@@ -120,6 +123,12 @@ Clients get payouts from bedroom attributes (`PayoutSeq`, `PayoutAmount`, `Tier`
 `AccessoryLook.dressMonster` adds a mutation's glow and sparks. Fear eggs roll a mutation on hatching; the tutorial and tracker eggs don't.
 
 `ServerStorage` attribute `TestForceMutation` is a Studio-only test helper.
+
+## Roster, placeholders, settings and Robux
+
+`MonsterRig.luau` builds every species except the Jeff stand-in, from `ServerStorage.MonsterModels` if a model with the species id exists, otherwise as a labelled placeholder. `Balance.content.hatchRoster` turns the roster on; `TestRoster` previews it in Studio only.
+
+`Sounds.luau` holds every sound id, all empty until approved. `UiFit.luau` shrinks fixed-size interface pieces. Settings save in `Settings` and return as player attributes. `Premium.luau` handles receipts for products in `Balance.premium.products`, which is empty, so nothing runs today.
 
 ## Inventory and hotbar
 

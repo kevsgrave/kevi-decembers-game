@@ -106,6 +106,12 @@ local function validate(b: any, problems: {string})
 		end
 	end
 
+	if type(section("content", b.content).hatchRoster) ~= "boolean" then bad("content.hatchRoster: expected true or false") end
+	for id, product in ids("premium.products", section("premium", b.premium).products) do
+		num(`premium.products.{id}.productId`, product.productId, 1, nil, true)
+		num(`premium.products.{id}.grantFear`, product.grantFear, 1, nil, true)
+	end
+
 	-- every species pays a fixed amount inside its rarity's band
 	for id, m in ids("monsters", b.monsters) do
 		if type(m.name) ~= "string" then bad(`monsters.{id}.name: expected a string`) end

@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local JeffRig = require(Shared:WaitForChild("JeffRig"))
 local Payout = require(Shared:WaitForChild("Payout"))
+local MonsterRig = require(Shared:WaitForChild("MonsterRig"))
 local Tutorial = require(Shared:WaitForChild("Tutorial"))
 local PlotLayout = require(Shared:WaitForChild("PlotLayout"))
 local Net = require(Shared:WaitForChild("Net"))
@@ -20,6 +21,7 @@ local GuestKids = require(script.Parent.GuestKids)
 local RoomStyles = require(script.Parent.RoomStyles)
 local PlotFrame = require(script.Parent.PlotFrame)
 local PlotClaims = require(script.Parent.PlotClaims)
+local Premium = require(script.Parent.Premium)
 local PlotFloors = require(script.Parent.PlotFloors)
 local Fusion = require(script.Parent.Fusion)
 local Rebirth = require(script.Parent.Rebirth)
@@ -41,6 +43,7 @@ local popupRemote, rebirthRemote, inventoryRemote, cueRemote, tutorialRemote, op
 local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
 local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
 local allowRebirth = RateLimiter.new(Config.LIMITS.rebirth.capacity, Config.LIMITS.rebirth.refillPerSecond)
+local allowSettings = RateLimiter.new(Config.LIMITS.settings.capacity, Config.LIMITS.settings.refillPerSecond)
 local allowInventory = RateLimiter.new(Config.LIMITS.inventory.capacity, Config.LIMITS.inventory.refillPerSecond)
 local allowManual = RateLimiter.new(Config.LIMITS.manual.capacity, Config.LIMITS.manual.refillPerSecond)
 local allowItems = RateLimiter.new(Config.LIMITS.items.capacity, Config.LIMITS.items.refillPerSecond)
@@ -157,21 +160,30 @@ end
 -- A rarity-coloured outline shows his tier (the case also names it).
 local function makeMonster(bedroom, tier, record)
 	local scale = SIZE_SCALE[record.Size] or 1
-	local m = JeffRig.build(bedroom, bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0), "JeffDisplay", scale)
-	local roomJeff = JeffRig.build(m, roomOrigin(bedroom), "JeffRoom", scale)
-	roomJeff.Name = "RoomJeff"
-	local _, path = setScareRoute(bedroom, roomJeff, tier.interval)
-	JeffRig.idle(roomJeff, path)
+	local spot = bedroom.MonsterSpot.CFrame * CFrame.new(0, 0.25, 0)
+	local m, worker
+	if record.Kind == Config.MONSTER_KIND then
+		m = JeffRig.build(bedroom, spot, "JeffDisplay", scale)
+		worker = JeffRig.build(m, roomOrigin(bedroom), "JeffRoom", scale)
+	else
+		m = MonsterRig.build(bedroom, spot, record.Kind, "PlaceholderDisplay", scale, Config.displayName(record.Kind))
+		worker = MonsterRig.build(m, roomOrigin(bedroom), record.Kind, "PlaceholderRoom", scale)
+	end
+	worker.Name = "RoomWorker"
+	local _, path = setScareRoute(bedroom, worker, tier.interval)
+	if record.Kind == Config.MONSTER_KIND then JeffRig.idle(worker, path) else worker:PivotTo(CFrame.new(path[1])) end
 	local h = Instance.new("Highlight") h.FillTransparency = 1 h.OutlineColor = tier.color h.Parent = m
 	AccessoryLook.dressMonster(m, record.Mutation)
 	return m
 end
 
--- the kid's reaction at the moment Jeff pops up: it sits bolt upright, jumps and shakes with a "!", then runs off
-local function playScare(bedroom)
+-- the kid's reaction at the moment Jeff pops up: it sits bolt upright, jumps and shakes with a "!", then runs off.
+-- A room follows its owner's reduced-scares setting.
+local function playScare(bedroom, player)
 	local guest = bedroom:FindFirstChild("Guest")
 	if guest and guest.Parent then
-		GuestKids.scare(guest)
+		local d = player and data(player)
+		GuestKids.scare(guest, d and d.Settings.ReducedScares)
 		guest:Destroy()
 	end
 end
@@ -240,7 +252,7 @@ local function showInfo(player, bedroom)
 		local extras = {}
 		if monster.Size ~= "Normal" then table.insert(extras, monster.Size) end
 		if monster.Mutation then table.insert(extras, monster.Mutation) end
-		info.MonsterName.Text = monster.Kind .. " - " .. tier.name .. (if #extras > 0 then " (" .. table.concat(extras, ", ") .. ")" else "")
+		info.MonsterName.Text = Config.displayName(monster.Kind) .. " - " .. tier.name .. (if #extras > 0 then " (" .. table.concat(extras, ", ") .. ")" else "")
 		info.MonsterName.TextColor3 = tier.color
 		info.Cash.Text = "👻 " .. Config.short(b.total) .. " / scare, every " .. tier.interval .. "s"
 		info.Factors.Text = Payout.describe(b, bedroom:GetAttribute("Tier") or "Room", monster.Size, monster.Mutation)
@@ -284,9 +296,9 @@ local function syncTools(player)
 		if not have[uid] then
 			local monster = d.Monsters[uid]
 			local tool = Instance.new("Tool")
-			tool.Name = monster.Tier .. " " .. monster.Kind
+			tool.Name = monster.Tier .. " " .. Config.displayName(monster.Kind)
 			tool.CanBeDropped = false
-			JeffRig.buildMini(tool, 0.3)
+			if monster.Kind == Config.MONSTER_KIND then JeffRig.buildMini(tool, 0.3) else MonsterRig.buildMini(tool, monster.Kind) end
 			tool.ToolTip = "👻 " .. Config.short(monster.BaseFear) .. " / scare. Press E at your display case"
 			tool:SetAttribute("Uid", uid)
 			tool.Parent = backpack
@@ -387,7 +399,7 @@ end
 -- a scare has landed: the kid reacts, the room rerolls and a fresh kid gets into bed
 local function resetRoom(player, bedroom)
 	reacting[bedroom] = true
-	playScare(bedroom)
+	playScare(bedroom, player)
 	reacting[bedroom] = nil
 	if not bedroom.Parent then return end -- the plot was released while the kid reacted
 	setBedroomTier(bedroom, Config.pickBedroomTier(rng:NextNumber(0, 100)))
@@ -401,7 +413,7 @@ local scheduler = ScareScheduler.new({
 	begin = function(bedroom)
 		local work = working[bedroom]
 		local monster = bedroom:FindFirstChild("Monster")
-		local roomJeff = monster and monster:FindFirstChild("RoomJeff")
+		local roomJeff = monster and monster:FindFirstChild("RoomWorker")
 		if not work or not roomJeff then return 0 end
 		local tl = setScareRoute(bedroom, roomJeff, Config.TIER_BY_NAME[work.tier].interval)
 		roomJeff:SetAttribute("ScareCount", (roomJeff:GetAttribute("ScareCount") or 0) + 1)
@@ -449,6 +461,18 @@ local function startRoom(player, bedroom, uid)
 	showInfo(player, bedroom)
 end
 
+-- what hatches from an egg of this rarity: the stand-in with a payout rolled in the band, or, once the roster is on, a species
+-- at its own listed payout. TestRoster is a Studio-only preview, and IsStudio is false on real servers.
+local function rollMonster(tier)
+	local rosterOn = Config.Balance.content.hatchRoster
+		or (game:GetService("RunService"):IsStudio() and ServerStorage:GetAttribute("TestRoster") == true)
+	if rosterOn then
+		local species = Config.pickSpecies(tier.name, rng:NextNumber())
+		return species.id, species.baseFear
+	end
+	return Config.MONSTER_KIND, rng:NextInteger(tier.min, tier.max)
+end
+
 -- the egg shrine's panel asks for this. Returns true and the result, or false and a reason for the player.
 local function hatchEgg(player, ...)
 	if not allowHatch(player) then return false, "Slow down!" end
@@ -471,13 +495,13 @@ local function hatchEgg(player, ...)
 	if not promise and d.Fear < egg.price then return false, "Need " .. Config.short(egg.price) .. " Fear" end
 	-- no yields from the checks above to here, so a double request cannot spend once and hatch twice
 	local tier = Config.pickFromEgg(eggId, rng:NextNumber(0, 100))
-	local baseFear = rng:NextInteger(tier.min, tier.max)
+	local kind, baseFear = rollMonster(tier)
 	-- the tutorial's egg never mutates, so it can't surprise a new player
 	local mutation = if promise then nil else Config.pickMutation(rng:NextNumber(0, 100))
 	-- a test helper set from the command bar; IsStudio is false on real servers
 	local forced = game:GetService("RunService"):IsStudio() and ServerStorage:GetAttribute("TestForceMutation")
 	if type(forced) == "string" and not promise then mutation = forced end
-	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, baseFear, promise and "tutorial" or "egg", mutation))
+	Inventory.add(d, DataTemplate.newMonster(kind, tier.name, baseFear, promise and "tutorial" or "egg", mutation))
 	if promise then
 		d.Tutorial.EggUsed = true
 	else
@@ -485,7 +509,7 @@ local function hatchEgg(player, ...)
 	end
 	inventoryChanged(player)
 	task.spawn(PlayerData.SaveNowAsync, player)
-	local result = {kind = Config.MONSTER_KIND, tier = tier.name, baseFear = baseFear, mutation = mutation}
+	local result = {kind = Config.displayName(kind), tier = tier.name, baseFear = baseFear, mutation = mutation}
 	lastHatch[player] = {requestId = requestId, result = result}
 	return true, result
 end
@@ -594,7 +618,7 @@ local function runManual(player, b, session)
 			d.Tutorial.ManualDone = true
 			tutorialChanged(player)
 			cueRemote:FireClient(player, {phase = "done", word = word, amount = amount})
-			playScare(b)
+			playScare(b, player)
 		end
 	elseif player.Parent == Players then
 		cueRemote:FireClient(player, {phase = "done"})
@@ -650,6 +674,33 @@ local function manualTap(player, ...)
 	local session = manualSessions[player]
 	if session and session.phase == "cue" and not session.tapAt then
 		session.tapAt = os.clock() - math.min(player:GetNetworkPing(), 0.3)
+	end
+end
+
+-- settings: only these keys, and clients get them back as attributes
+local function publishSettings(player, d)
+	player:SetAttribute("ReducedScares", d.Settings.ReducedScares)
+	player:SetAttribute("MusicVolume", d.Settings.MusicVolume)
+	player:SetAttribute("SfxVolume", d.Settings.SfxVolume)
+end
+
+local function setSetting(player, ...)
+	if not allowSettings(player) or not Remotes.checkArgs("SetSetting", ...) then return end
+	local d = data(player)
+	local key, on = ...
+	if d and key == "ReducedScares" then
+		d.Settings.ReducedScares = on
+		publishSettings(player, d)
+	end
+end
+
+local function setVolume(player, ...)
+	if not allowSettings(player) or not Remotes.checkArgs("SetVolume", ...) then return end
+	local d = data(player)
+	local key, value = ...
+	if d and (key == "MusicVolume" or key == "SfxVolume") then
+		d.Settings[key] = math.clamp(value, 0, 1)
+		publishSettings(player, d)
 	end
 end
 
@@ -773,12 +824,12 @@ local function hatchOwnedEgg(player, ...)
 		return false
 	end
 	local tier = Config.pickFromEgg(eggId, rng:NextNumber(0, 100))
-	local baseFear = rng:NextInteger(tier.min, tier.max)
+	local kind, baseFear = rollMonster(tier)
 	d.Eggs[uid] = nil
-	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, baseFear, "dig"))
+	Inventory.add(d, DataTemplate.newMonster(kind, tier.name, baseFear, "dig"))
 	inventoryChanged(player)
 	task.spawn(PlayerData.SaveNowAsync, player)
-	revealRemote:FireClient(player, {kind = Config.MONSTER_KIND, tier = tier.name, baseFear = baseFear})
+	revealRemote:FireClient(player, {kind = Config.displayName(kind), tier = tier.name, baseFear = baseFear})
 	return true
 end
 
@@ -993,6 +1044,7 @@ local function onLoaded(profile)
 		task.defer(sendHome, player)
 		task.defer(tutorialChanged, player)
 	end)
+	publishSettings(player, d)
 	trackerChanged(player) -- resume a dig in progress at the same spot
 	if profile.Unsaved then popup(player, "Studio test: progress will not be saved") end
 	claim(player)
@@ -1016,6 +1068,22 @@ function GameService.Start()
 	remotes.Dig.OnServerInvoke = digEgg
 	remotes.HatchOwnedEgg.OnServerInvoke = hatchOwnedEgg
 	remotes.FuseMonsters.OnServerInvoke = fuseMonsters
+	remotes.SetSetting.OnServerEvent:Connect(setSetting)
+	remotes.SetVolume.OnServerEvent:Connect(setVolume)
+	-- only when real products exist. The purchase counts only once the save has written, so Roblox retries otherwise, and
+	-- a retry can't grant twice.
+	if Premium.configured() then
+		game:GetService("MarketplaceService").ProcessReceipt = function(info)
+			local player = Players:GetPlayerByUserId(info.PlayerId)
+			local d = player and data(player)
+			if not d then return Enum.ProductPurchaseDecision.NotProcessedYet end
+			local outcome = Premium.grant(d, info.PurchaseId, Premium.product(info.ProductId))
+			if outcome == "unknown" then return Enum.ProductPurchaseDecision.NotProcessedYet end
+			setFear(player, d, d.Fear)
+			if not PlayerData.SaveNowAsync(player) then return Enum.ProductPurchaseDecision.NotProcessedYet end
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+	end
 	remotes.HatchEgg.OnServerInvoke = hatchEgg
 	remotes.OpenBox.OnServerInvoke = openBox
 	remotes.EquipAccessory.OnServerInvoke = equipAccessory

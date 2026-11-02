@@ -7,6 +7,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Net = require(Shared:WaitForChild("Net"))
+local Sounds = require(Shared:WaitForChild("Sounds"))
 
 local player = Players.LocalPlayer
 local hatchRemote = Net.Function("HatchEgg")
@@ -63,6 +64,7 @@ local tapText = revealLabel("Tap", 0.8, 0.05, "Tap to skip")
 local revealRun = 0
 
 local function showResult(r)
+	Sounds.play("hatch")
 	local tier = Config.TIER_BY_NAME[r.tier]
 	eggIcon.Visible = false
 	nameText.Text = r.kind
