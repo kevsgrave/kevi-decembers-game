@@ -62,7 +62,7 @@ Before the Phase 1 sync there were 17 scripts; `docs/ARCHITECTURE.md` lists each
 
 | Gap | Phase |
 |---|---|
-| Auto-assign instead of a claim station; no station for shop, fusing, rebirth or index | 2 |
+| No station for shop, fusing, rebirth or index. Auto-assign stays by owner decision (2026-11-02), see `docs/phase2/REPORT.md` | 2 |
 | One floor only; no floor 2 | 2, 7 |
 | `Players.MaxPlayers` reads 60; the spec says 8 (a place setting, owner or Phase 2) | 2 |
 | Placement uses bedroom index, not a named slot ID (workable, needs a decision) | 3 |

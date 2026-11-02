@@ -77,15 +77,15 @@ Client requests with several steps carry a request id (the last `id` argument in
 | FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
-Claiming stays a ProximityPrompt (server-side `Triggered`), so it needs no remote. Hatching, placing and manual scares are prompts today too; their phases decide whether to keep the prompt or move to the remote above.
+Plots are assigned by the server, so they need no remote. Hatching, placing and manual scares are ProximityPrompts today (server-side `Triggered`); their phases decide whether to keep the prompt or move to the remote above.
 
 ## Plots and floors
 
-`PlotClaims` owns who has which plot: `Unclaimed -> Claimed -> Released`, with no yields, so two requests can't both win. A player claims at a plot's `ClaimPad`; leaving releases it and empties `Contents`.
+Plots are **auto-assigned, by the owner's decision (overrides the master prompt's claim station)**. When a player's save loads, `GameService` gives them the first free plot. If all are taken they visit, and they get the next plot that frees up. `PlotClaims` tracks ownership: `Unclaimed -> Claimed -> Released`, with no yields, so two players can't get one plot. Leaving releases the plot and empties `Contents`.
 
 `PlotLayout` maps bedroom numbers to floors: 1-6 is floor 1, 7-12 is floor 2, and odd bays are on the left. Saves key placements by bedroom number, so a slot stays stable on any plot. A floor is meant to be a copy of `PlotTemplate.Bedrooms` lifted by `PlotLayout.floorHeight(floor)`, renumbered with `bedroomIndex`. Floor 2 is built in Phase 7; `Config.BEDROOM_COUNT` still caps the game at 6 rooms.
 
-`MapBuilder.claimPads()` and `MapBuilder.stations()` add the pads, rebirth station, fusing sign and ghosts without rebuilding the hub or plots. Re-running either replaces only what it made.
+`MapBuilder.stations()` adds the rebirth station, fusing sign and ghosts without rebuilding the hub or plots. Re-running it replaces only what it made.
 
 ## Saved data, schema version 2
 

@@ -31,7 +31,6 @@ return {
 		hatch = {capacity = P(3), refillPerSecond = P(1.5)},
 		showcase = {capacity = P(4), refillPerSecond = P(2)},
 		rebirth = {capacity = P(2), refillPerSecond = P(0.5)},
-		claim = {capacity = P(3), refillPerSecond = P(1)},
 	},
 
 	-- least rare first; from Tiers For Monsters. Secret has no numbers in the notes.

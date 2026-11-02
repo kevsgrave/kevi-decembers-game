@@ -80,17 +80,11 @@ return function(): string
 	check("eight plots", #plots == 8)
 	local BLUE_MIN = 0.7
 	for _, plot in plots do
-		local pad = plot:FindFirstChild("ClaimPad")
-		check(`{plot.Name} has a working claim pad`, pad ~= nil and pad:FindFirstChild("ClaimPrompt") ~= nil and pad.ClaimPrompt.Enabled)
 		check(`{plot.Name} is empty and unowned`, #plot.Contents:GetChildren() == 0 and plot.OwnerSign:FindFirstChildWhichIsA("SurfaceGui").Text.Text == "Free plot")
 		check(`{plot.Name} floor is blue and studded`, plot.Floor.Color.B >= BLUE_MIN and plot.Floor:FindFirstChildOfClass("Texture") ~= nil)
 		check(`{plot.Name} has a pink carpet`, plot.Carpet.Color.R > 0.9 and plot.Carpet.Color.G < 0.5)
 		check(`{plot.Name} frame is set`, typeof(plot:GetAttribute("Frame")) == "CFrame")
-		if pad then
-			local frame = plot:GetAttribute("Frame")
-			local spot = frame:PointToObjectSpace(pad.Position)
-			check(`{plot.Name} pad is at the gate, not blocking it`, not pad.CanCollide and math.abs(spot.X) < 1 and spot.Z < -63)
-		end
+		check(`{plot.Name} has an arrival point`, plot:FindFirstChild("SpawnPoint") ~= nil)
 	end
 
 	-- spawn and hub

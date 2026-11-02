@@ -169,27 +169,6 @@ end
 
 --------------------------------------------------------------------------- plots
 
--- the glowing pad at a plot's gate where a player claims it; GameService hides it while the plot is owned
-local function claimPad(m, frame)
-	local old = m:FindFirstChild("ClaimPad")
-	if old then old:Destroy() end
-	local pad = P(m, "ClaimPad", Vector3.new(10, 0.2, 8), frame * CFrame.new(0, 2.4, -68), Color3.fromRGB(90, 255, 130), Enum.Material.Neon, {CanCollide = false, CanTouch = false}) -- just above the carpet
-	local prompt = Instance.new("ProximityPrompt") prompt.Name = "ClaimPrompt" prompt.ActionText = "Claim Plot" prompt.ObjectText = "Free plot"
-	prompt.HoldDuration = 0.3 prompt.MaxActivationDistance = 12 prompt.RequiresLineOfSight = false prompt.Parent = pad
-	local bb = Instance.new("BillboardGui") bb.Name = "ClaimLabel" bb.Size = UDim2.fromScale(14, 3) bb.StudsOffset = Vector3.new(0, 6, 0) bb.MaxDistance = 150 bb.Parent = pad
-	local t = Instance.new("TextLabel") t.Name = "Text" t.Size = UDim2.fromScale(1, 1) t.BackgroundTransparency = 1 t.Font = Enum.Font.FredokaOne t.TextScaled = true
-	t.TextColor3 = Color3.fromRGB(120, 255, 140) t.Text = "Free plot: claim here" t.Parent = bb stroke(t, 4)
-	return pad
-end
-
--- adds the pads to plots that are already built, without rebuilding them
-function MapBuilder.claimPads()
-	for i = 1, MapBuilder.PLOT_COUNT do
-		claimPad(workspace.Plots["Plot" .. i], ringCF(MapBuilder.RING_RADIUS, plotAngle(i)))
-	end
-	return "claim pads: " .. MapBuilder.PLOT_COUNT
-end
-
 -- one plot shell in its own frame (local origin = the old single plot's origin; front toward local -Z)
 local function plotShell(parent, i)
 	local frame = ringCF(MapBuilder.RING_RADIUS, plotAngle(i))
@@ -241,7 +220,6 @@ local function plotShell(parent, i)
 	-- where the owner arrives: just inside the arch, facing their bedrooms
 	local spawn = P(m, "SpawnPoint", Vector3.new(4, 1, 4), L(0, 2.6, -56) * CFrame.Angles(0, math.pi, 0), Color3.new(1, 1, 1), nil, {Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false})
 	spawn.CFrame = CFrame.lookAt(spawn.Position, (L(0, 2.6, 0)).Position)
-	claimPad(m, frame)
 	local contents = Instance.new("Folder") contents.Name = "Contents" contents.Parent = m
 	m.WorldPivot = frame
 	m.Parent = parent
@@ -321,7 +299,7 @@ function MapBuilder.hub()
 		local l = Instance.new("PointLight") l.Color = Color3.fromRGB(160, 255, 255) l.Range = 16 l.Brightness = 0.8 l.Shadows = false l.Parent = g
 	end
 
-	-- the hidden lobby spawn: players start here until they claim a plot
+	-- the spawn is only used before a player's plot is assigned (a moment after joining)
 	local sp = workspace:FindFirstChildOfClass("SpawnLocation")
 	if sp then
 		sp.CFrame = CFrame.new(0, 1.2, -24) sp.Size = Vector3.new(6, 1, 6)
