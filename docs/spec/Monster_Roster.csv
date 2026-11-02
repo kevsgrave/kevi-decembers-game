@@ -1,0 +1,43 @@
+speciesId,displayName,rarity,baseFearPerScare,scareSeconds,concept,scareAnimationDirection
+sock-goblin,Sock Goblin,Common,50,15,Tiny stitched gremlin with runaway socks,sniffs sock then springs from drawer
+dust-bopper,Dust Bopper,Common,85,15,Dustball creature with jelly legs,bounces out from under bed
+boo-balloon,Boo Balloon,Common,125,15,Floating balloon ghost with painted face,inflates until its face pops into view
+puddle-imp,Puddle Imp,Common,165,15,Rain puddle imp in boots,slides out of a puddle to squeak
+pumpkin-peeker,Pumpkin Peeker,Common,210,15,Miniature animated jack-o-lantern,opens glowing eyes from a shelf
+curtain-crawler,Curtain Crawler,Common,270,15,Friendly six-armed cloth creature,swings out of curtains
+wobble-wisp,Wobble Wisp,Common,335,15,Neon flame orb with drowsy eyes,splits into tiny ghost sparks
+mothling,Mothling,Common,390,15,Big moth with moon wings and antennae,flutters across the nightlight
+grinling-hound,Grinling Hound,Rare,225,10,Patchwork hound with a crooked lantern smile,pokes a harmless shadow-paw in the window
+lantern-jaw,Lantern Jaw,Rare,300,10,Walking lantern with chatterbox teeth,clacks its hinged lantern mouth
+shiver-jack,Shiver Jack,Rare,365,10,Tall scarf-wearing scarecrow prankster,leans sideways out of wardrobe
+clockwork-clown,Clockwork Clown,Rare,440,10,Wind-up toy clown with square spring limbs,spins a jack-in-the-box
+blanket-mimic,Blanket Mimic,Rare,525,10,Blanket with bright glowing button eyes,forms a giant blanket puppet
+paper-shadow,Paper Shadow,Rare,615,10,Origami silhouette with impossible folds,unfolds across the wall
+mossy-howler,Mossy Howler,Rare,700,10,Forest goblin with a bell collar,howls into a floating teacup
+sneakwood,Sneakwood,Rare,790,10,Root creature with wooden mask,sprouts from a bedpost
+plush-prowler,Plush Prowler,Epic,450,8,Round-shouldered plush beast with mismatched colors,extends springy mitten hands
+dream-snatcher,Dream Snatcher,Epic,590,8,Sleepy star-cat with a tiny crescent tail,leaps through dream clouds
+goggle-gremlin,Goggle Gremlin,Epic,755,8,Triple-eyed mechanical goblin with copper goggles,flashes a surprise telescope face
+lullaby-lurker,Lullaby Lurker,Epic,910,8,Musical marionette with a bell-shaped hood,plays a quirky two-note music-box riff
+mirror-minnow,Mirror Minnow,Epic,1090,8,Floating aquarium-fish ghost with mirror scales,appears in a mirrored reflection
+fuzzy-fury,Fuzzy Fury,Epic,1270,8,Huge puffy monster with tiny feet and colorful horns,unfurls enormous fluffy mane
+hallway-marionette,Hallway Marionette,Epic,1480,8,Porcelain hallway puppet on glowing strings,tiptoes upside-down on strings
+velvet-beast,Velvet Beast,Legendary,850,5,Horned velvet guardian with embroidered moon patches,opens a stage curtain revealing glowing eyes
+moonbite-mutt,Moonbite Mutt,Legendary,1125,5,Spectral long-legged wolf with crystal collar,silhouette crosses the full moon
+jester-of-static,Jester of Static,Legendary,1460,5,Television-faced royal jester,switches channels to reveal a comic face
+crowned-candle,Crowned Candle,Legendary,1800,5,Wax creature wearing a floating crown,snuffs lights then relights every candle
+nightmare-astronaut,Nightmare Astronaut,Legendary,2150,5,Patchwork astronaut filled with stars,taps helmet from behind a window
+static-phantom,Static Phantom,Legendary,2475,5,Ribbonlike phantom of crackling purple static,separates into dancing afterimages
+wardrobe-king,The Wardrobe King,Mythic,1400,5,Regal cedar wardrobe with many little doors,opens a hundred harmless glowing doors
+starved-clock,The Starved Clock,Mythic,2050,5,Animated grandfather clock made of floating numbers,rewinds time then chimes at wrong hour
+madame-eclipse,Madame Eclipse,Mythic,2950,5,Masked celestial showwoman in crescent cape,casts an eclipse shadow puppet
+dread-leviathan,Dread Leviathan,Mythic,3850,5,Long ribbon-serpent made of storm clouds,swims through a cloud wall
+pale-conductor,The Pale Conductor,Mythic,4900,5,Ghostly orchestra conductor with spiderlike baton,conducts a silent ghost choir
+hollow-monarch,The Hollow Monarch,SPOOKY,8200,3.5,Towering hollow porcelain monarch with orbiting masks,makes every mask turn toward the guest
+night-parade,The Night Parade,SPOOKY,9700,3.5,One collectible monster: a tiny ghost marching band,band marches across the ceiling
+mourning-bell,The Mourning Bell,SPOOKY,11200,3.5,Floating gothic bell with cartoon eye,releases a soft ripple of shadow
+candle-eater,The Candle Eater,SPOOKY,13200,3.5,Lantern-winged moth giant with a hollow mask,inhales all room candle flames
+inkwell-witch,The Inkwell Witch,SPOOKY,14850,3.5,Spinning ink spirit in paper dress,paints a door that briefly opens
+zero-hour,Zero Hour,Secret,21000,3,"Transparent clock-shaped anomaly, no copyrighted analogues",stops all room clocks for one beat
+unseen-host,The Unseen Host,Secret,26500,3,Empty tuxedo with floating invitation cards,bows and reveals impossible backstage doorway
+last-lantern,The Last Lantern,Secret,34000,3,Ancient living lighthouse lantern with constellation eyes,beams a moving starfield through the room

@@ -1,0 +1,15 @@
+SCARE SIM — COMPLETE EXPANDED GAME PROJECT PROMPT PACKAGE
+
+Start here:
+  1. Read Scare_Sim_Full_Game_Design_Bible.md. This has the entire proposed game: exact map, 42 monsters, progression, eggs, gamepasses, quests, shop, events, interface, architecture, plus source-vs-added labeling.
+  2. To request implementation from a Roblox-capable AI coding agent, paste/upload Scare_Sim_COMPLETE_COPY_PASTE_AI_PROMPT.md. This is the single self-contained master prompt and embeds the complete design bible.
+  3. If your agent handles smaller tasks better, keep that master prompt as context and paste one phase at a time from Scare_Sim_Phase_Build_Guide.md.
+  4. Monster_Roster.csv provides the proposed 42 species in structured form. Scare_Sim_Provisional_Balance.json provides machine-readable, editable draft values. The Lua agent should translate these into validated modules, not run JSON from a LocalScript.
+
+The user's source design is preserved, but new details are DESIGN PROPOSALS rather than old Obsidian decisions. Almost every original note is addressed. No Roblox project/asset import was performed by this chat—this package is the detailed implementation blueprint.
+
+Important source omissions: the .7z did not include embedded reference images or the Blender Jeff animation; a separate LihFolk Vault and actual .rbxl game weren't provided. You may supply them to the developer agent to match your existing work.
+
+Policy: use original character designs; never clone copyrighted Monster Inc, Poppy Playtime, Sonic, or recognizable creepypasta artwork. Check current Roblox Monetization/Paid Random Items documentation before publication, especially for Robux-to-random chains.
+
+Prepared November 2026.

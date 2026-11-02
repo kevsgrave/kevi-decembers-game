@@ -1,0 +1,482 @@
+{
+  "metadata": {
+    "status": "PROVISIONAL launch tuning, NOT final original choices",
+    "notes": "Original rarity timings/ranges and room odds preserved; GOD 0.001 interpreted as percent"
+  },
+  "serverMaxPlayers": 8,
+  "startRooms": 3,
+  "roomsPerFloor": 6,
+  "marketRefreshSeconds": 300,
+  "manualScare": {
+    "baseFear": 100,
+    "cooldownSeconds": 8,
+    "maxPerfectBonus": 1.2
+  },
+  "rebirth": {
+    "firstCostFear": 50000,
+    "costMultiplier": 3,
+    "incomeMultiplierPerRebirth": 0.25,
+    "formula": "50_000 * 3 ^ currentRebirths"
+  },
+  "roomTiers": [
+    {
+      "tier": "Normal",
+      "probabilityPercent": 73.949,
+      "multiplier": 1
+    },
+    {
+      "tier": "Silver",
+      "probabilityPercent": 20,
+      "multiplier": 1.2
+    },
+    {
+      "tier": "Gold",
+      "probabilityPercent": 5,
+      "multiplier": 1.5
+    },
+    {
+      "tier": "Platinum",
+      "probabilityPercent": 1,
+      "multiplier": 2
+    },
+    {
+      "tier": "Diamond",
+      "probabilityPercent": 0.05,
+      "multiplier": 4
+    },
+    {
+      "tier": "GOD",
+      "probabilityPercent": 0.001,
+      "multiplier": 16
+    }
+  ],
+  "monsters": [
+    {
+      "id": "sock-goblin",
+      "name": "Sock Goblin",
+      "rarity": "Common",
+      "baseFearPerScare": 50,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "dust-bopper",
+      "name": "Dust Bopper",
+      "rarity": "Common",
+      "baseFearPerScare": 85,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "boo-balloon",
+      "name": "Boo Balloon",
+      "rarity": "Common",
+      "baseFearPerScare": 125,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "puddle-imp",
+      "name": "Puddle Imp",
+      "rarity": "Common",
+      "baseFearPerScare": 165,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "pumpkin-peeker",
+      "name": "Pumpkin Peeker",
+      "rarity": "Common",
+      "baseFearPerScare": 210,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "curtain-crawler",
+      "name": "Curtain Crawler",
+      "rarity": "Common",
+      "baseFearPerScare": 270,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "wobble-wisp",
+      "name": "Wobble Wisp",
+      "rarity": "Common",
+      "baseFearPerScare": 335,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "mothling",
+      "name": "Mothling",
+      "rarity": "Common",
+      "baseFearPerScare": 390,
+      "secondsPerScare": 15
+    },
+    {
+      "id": "grinling-hound",
+      "name": "Grinling Hound",
+      "rarity": "Rare",
+      "baseFearPerScare": 225,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "lantern-jaw",
+      "name": "Lantern Jaw",
+      "rarity": "Rare",
+      "baseFearPerScare": 300,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "shiver-jack",
+      "name": "Shiver Jack",
+      "rarity": "Rare",
+      "baseFearPerScare": 365,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "clockwork-clown",
+      "name": "Clockwork Clown",
+      "rarity": "Rare",
+      "baseFearPerScare": 440,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "blanket-mimic",
+      "name": "Blanket Mimic",
+      "rarity": "Rare",
+      "baseFearPerScare": 525,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "paper-shadow",
+      "name": "Paper Shadow",
+      "rarity": "Rare",
+      "baseFearPerScare": 615,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "mossy-howler",
+      "name": "Mossy Howler",
+      "rarity": "Rare",
+      "baseFearPerScare": 700,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "sneakwood",
+      "name": "Sneakwood",
+      "rarity": "Rare",
+      "baseFearPerScare": 790,
+      "secondsPerScare": 10
+    },
+    {
+      "id": "plush-prowler",
+      "name": "Plush Prowler",
+      "rarity": "Epic",
+      "baseFearPerScare": 450,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "dream-snatcher",
+      "name": "Dream Snatcher",
+      "rarity": "Epic",
+      "baseFearPerScare": 590,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "goggle-gremlin",
+      "name": "Goggle Gremlin",
+      "rarity": "Epic",
+      "baseFearPerScare": 755,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "lullaby-lurker",
+      "name": "Lullaby Lurker",
+      "rarity": "Epic",
+      "baseFearPerScare": 910,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "mirror-minnow",
+      "name": "Mirror Minnow",
+      "rarity": "Epic",
+      "baseFearPerScare": 1090,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "fuzzy-fury",
+      "name": "Fuzzy Fury",
+      "rarity": "Epic",
+      "baseFearPerScare": 1270,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "hallway-marionette",
+      "name": "Hallway Marionette",
+      "rarity": "Epic",
+      "baseFearPerScare": 1480,
+      "secondsPerScare": 8
+    },
+    {
+      "id": "velvet-beast",
+      "name": "Velvet Beast",
+      "rarity": "Legendary",
+      "baseFearPerScare": 850,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "moonbite-mutt",
+      "name": "Moonbite Mutt",
+      "rarity": "Legendary",
+      "baseFearPerScare": 1125,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "jester-of-static",
+      "name": "Jester of Static",
+      "rarity": "Legendary",
+      "baseFearPerScare": 1460,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "crowned-candle",
+      "name": "Crowned Candle",
+      "rarity": "Legendary",
+      "baseFearPerScare": 1800,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "nightmare-astronaut",
+      "name": "Nightmare Astronaut",
+      "rarity": "Legendary",
+      "baseFearPerScare": 2150,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "static-phantom",
+      "name": "Static Phantom",
+      "rarity": "Legendary",
+      "baseFearPerScare": 2475,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "wardrobe-king",
+      "name": "The Wardrobe King",
+      "rarity": "Mythic",
+      "baseFearPerScare": 1400,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "starved-clock",
+      "name": "The Starved Clock",
+      "rarity": "Mythic",
+      "baseFearPerScare": 2050,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "madame-eclipse",
+      "name": "Madame Eclipse",
+      "rarity": "Mythic",
+      "baseFearPerScare": 2950,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "dread-leviathan",
+      "name": "Dread Leviathan",
+      "rarity": "Mythic",
+      "baseFearPerScare": 3850,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "pale-conductor",
+      "name": "The Pale Conductor",
+      "rarity": "Mythic",
+      "baseFearPerScare": 4900,
+      "secondsPerScare": 5
+    },
+    {
+      "id": "hollow-monarch",
+      "name": "The Hollow Monarch",
+      "rarity": "SPOOKY",
+      "baseFearPerScare": 8200,
+      "secondsPerScare": 3.5
+    },
+    {
+      "id": "night-parade",
+      "name": "The Night Parade",
+      "rarity": "SPOOKY",
+      "baseFearPerScare": 9700,
+      "secondsPerScare": 3.5
+    },
+    {
+      "id": "mourning-bell",
+      "name": "The Mourning Bell",
+      "rarity": "SPOOKY",
+      "baseFearPerScare": 11200,
+      "secondsPerScare": 3.5
+    },
+    {
+      "id": "candle-eater",
+      "name": "The Candle Eater",
+      "rarity": "SPOOKY",
+      "baseFearPerScare": 13200,
+      "secondsPerScare": 3.5
+    },
+    {
+      "id": "inkwell-witch",
+      "name": "The Inkwell Witch",
+      "rarity": "SPOOKY",
+      "baseFearPerScare": 14850,
+      "secondsPerScare": 3.5
+    },
+    {
+      "id": "zero-hour",
+      "name": "Zero Hour",
+      "rarity": "Secret",
+      "baseFearPerScare": 21000,
+      "secondsPerScare": 3
+    },
+    {
+      "id": "unseen-host",
+      "name": "The Unseen Host",
+      "rarity": "Secret",
+      "baseFearPerScare": 26500,
+      "secondsPerScare": 3
+    },
+    {
+      "id": "last-lantern",
+      "name": "The Last Lantern",
+      "rarity": "Secret",
+      "baseFearPerScare": 34000,
+      "secondsPerScare": 3
+    }
+  ],
+  "sizes": {
+    "Normal": {
+      "fusionInput": 0,
+      "multiplier": 1,
+      "scale": 1
+    },
+    "Large": {
+      "fusionInput": 4,
+      "multiplier": 1.5,
+      "scale": 1.07
+    },
+    "Mega": {
+      "fusionInput": 3,
+      "multiplier": 2.25,
+      "scale": 1.13
+    },
+    "MASSIVE": {
+      "fusionInput": 3,
+      "multiplier": 3.5,
+      "scale": 1.2
+    }
+  },
+  "mutations": {
+    "None": 1,
+    "Golden": 1.2,
+    "Haunted": 1.4,
+    "Creepy": 1.65,
+    "Cursed": 2,
+    "UnHoly": 2.5
+  },
+  "mutationRollPercent": {
+    "None": 96.6,
+    "Golden": 2,
+    "Haunted": 0.9,
+    "Creepy": 0.35,
+    "Cursed": 0.13,
+    "UnHoly": 0.02
+  },
+  "eggs": [
+    {
+      "id": "starter",
+      "priceFear": 500,
+      "rarityOddsPct": {
+        "Common": 78,
+        "Rare": 21,
+        "Epic": 1
+      }
+    },
+    {
+      "id": "creepy",
+      "priceFear": 6000,
+      "rarityOddsPct": {
+        "Rare": 65,
+        "Epic": 30,
+        "Legendary": 5
+      }
+    },
+    {
+      "id": "moon",
+      "priceFear": 60000,
+      "rarityOddsPct": {
+        "Epic": 65,
+        "Legendary": 30,
+        "Mythic": 5
+      }
+    },
+    {
+      "id": "haunted",
+      "priceFear": 600000,
+      "rarityOddsPct": {
+        "Legendary": 65,
+        "Mythic": 33,
+        "SPOOKY": 2
+      }
+    },
+    {
+      "id": "nightmare",
+      "priceFear": 6000000,
+      "rarityOddsPct": {
+        "Mythic": 85,
+        "SPOOKY": 14.9,
+        "Secret": 0.1
+      }
+    },
+    {
+      "id": "tutorial",
+      "priceFear": 0,
+      "voucherOnly": true,
+      "rarityOddsPct": {
+        "Epic": 80,
+        "Legendary": 20
+      }
+    },
+    {
+      "id": "buried",
+      "priceFear": 0,
+      "trackerOnly": true,
+      "rarityOddsPct": {
+        "Mythic": 85,
+        "SPOOKY": 14,
+        "Secret": 1
+      }
+    }
+  ],
+  "marketPriceFear": {
+    "RareBox": 2500,
+    "EpicBox": 30000,
+    "LegendaryBox": 350000,
+    "SecretBox": 3000000,
+    "Tracker": 800000
+  },
+  "inventory": {
+    "baseSlots": 250,
+    "premiumStoragePassExtraSlots": 250
+  },
+  "gamepassesDraftRobux": {
+    "VIP Lantern Club": 399,
+    "2x Fear": 349,
+    "Auto Hatch": 249,
+    "Fast Hatch": 99,
+    "Monster Storage +250": 179,
+    "Nightfall Sprint": 149,
+    "Haunted Decor Kit": 129,
+    "Extra Preset Slots": 99
+  },
+  "developerProductsDraftRobux": {
+    "Starter Scare Bundle": 79,
+    "Fusion Helper Kit": 129,
+    "Premium Room Decor Set": 59,
+    "Named Monster Showcase Pack": 199,
+    "Friend Gift - Lantern Bundle": 79,
+    "Event Supporter Pack": 149
+  }
+}
