@@ -353,6 +353,11 @@ function MapBuilder.stations()
 	deco(beam)
 	label(beam, Enum.NormalId.Front, "Rebirth Station", Color3.fromRGB(215, 170, 255))
 
+	-- the shop's first job: the tutorial's free box, claimed at the stall's counter. The full shop comes next.
+	local shopSpot = P(f, "ShopClaim", Vector3.new(4, 6, 1), ringCF(R - 12, 22.5, 0.6) * CFrame.new(0, 3, -5), Color3.new(1, 1, 1), nil, {Transparency = 1, CanCollide = false, CanTouch = false})
+	local shopPrompt = Instance.new("ProximityPrompt") shopPrompt.Name = "ClaimPrompt" shopPrompt.ActionText = "Claim Free Box" shopPrompt.ObjectText = "Shop"
+	shopPrompt.HoldDuration = 0.3 shopPrompt.MaxActivationDistance = 12 shopPrompt.RequiresLineOfSight = false shopPrompt.Parent = shopSpot
+
 	-- floating ghosts over the plaza and one at each plot's gate
 	for k, angle in ipairs({65, 150, 245, 290, 335}) do -- clear of the shop, rebirth, odds and fusing signs
 		local a = math.rad(angle)

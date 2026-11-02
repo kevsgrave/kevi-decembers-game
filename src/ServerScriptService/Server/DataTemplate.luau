@@ -27,7 +27,7 @@ export type Data = {
 	CaseAccessories: {[string]: string}, -- bedroom index as a string -> accessory uid
 	Eggs: {[string]: string}, -- uid -> unhatched egg id
 	Trackers: {[string]: {State: string, DigId: string?}}, -- uid -> Owned, Activated or Claimed
-	Tutorial: {Step: number, Complete: boolean, FreeBoxClaimed: boolean},
+	Tutorial: {Step: number, Complete: boolean, FreeBoxClaimed: boolean, ManualDone: boolean, EggUsed: boolean, ScareSeen: boolean},
 	Settings: {ReducedScares: boolean, MusicVolume: number, SfxVolume: number},
 	Receipts: {[string]: boolean}, -- purchase ids already granted
 }
@@ -51,7 +51,7 @@ function DataTemplate.new(): Data
 		CaseAccessories = {},
 		Eggs = {},
 		Trackers = {},
-		Tutorial = {Step = 0, Complete = false, FreeBoxClaimed = false},
+		Tutorial = {Step = 0, Complete = false, FreeBoxClaimed = false, ManualDone = false, EggUsed = false, ScareSeen = false},
 		Settings = {ReducedScares = false, MusicVolume = 1, SfxVolume = 1},
 		Receipts = {},
 	}
@@ -129,7 +129,6 @@ function DataTemplate.prepare(raw: any): (Data?, string?)
 		end
 	end
 	-- nobody with no monsters can be stuck below the first egg's price, like saves from when eggs and starting Fear were cheaper
-	-- shortcut: only tops up to the starting Fear, revisit when the tutorial voucher replaces starting Fear
 	if next(raw.Monsters) == nil and raw.Fear < Config.START_FEAR then raw.Fear = Config.START_FEAR end
 	-- a placement pointing at a missing monster, or a second placement of one monster, is dropped (the monster itself is never deleted)
 	local placed = {}
@@ -158,6 +157,15 @@ function DataTemplate.prepare(raw: any): (Data?, string?)
 		table.insert(hotbar, uid)
 	end
 	raw.Hotbar = hotbar
+	-- an accessory on two cases, or one that no longer exists, is taken off (the accessory itself is kept)
+	local equipped = {}
+	for slot, uid in raw.CaseAccessories do
+		if raw.Accessories[uid] == nil or equipped[uid] then
+			raw.CaseAccessories[slot] = nil
+		else
+			equipped[uid] = true
+		end
+	end
 	return raw :: Data, nil
 end
 

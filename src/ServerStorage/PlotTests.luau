@@ -104,6 +104,8 @@ return function(): string
 	check("stations built", stations ~= nil)
 	if stations then
 		check("fusing sign", stations:FindFirstChild("FusingSign") ~= nil)
+		local shopSpot = stations:FindFirstChild("ShopClaim")
+		check("the shop has its free box prompt", shopSpot ~= nil and shopSpot:FindFirstChild("ClaimPrompt") ~= nil)
 		local pad = stations:FindFirstChild("RebirthPad")
 		check("rebirth station has its prompt", pad ~= nil and pad:FindFirstChild("RebirthPrompt") ~= nil)
 		local ghosts = 0

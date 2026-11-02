@@ -39,7 +39,8 @@ The place file is `JumpscareRNG.rbxl`. The scripts are kept as source here, laid
 - `src/ServerScriptService/Server/PlayerData.luau`, `DataTemplate.luau`, `RateLimiter.luau`: session-locked saving and rate limits (from the vault's "Saved Inventory End to End").
 - `src/ServerScriptService/Server/Inventory.luau`: the rules for owned monsters, the hotbar and placing. `src/ServerStorage/InventoryTests.luau` tests them from the command bar.
 - `src/ServerScriptService/Server/ScareScheduler.luau`: runs every room's scares. `src/ReplicatedStorage/Shared/Payout.luau`: the Fear formula. `src/ServerStorage/ScareTests.luau` tests them from the command bar.
-- `src/StarterPlayerScripts/InventoryPanel.client.luau`: the inventory panel. `ManualScare.client.luau`: the crawl and timing bar.
+- `src/ReplicatedStorage/Shared/Tutorial.luau`: the tutorial steps. `src/ServerStorage/TutorialTests.luau` tests them, with eggs and accessories.
+- `src/StarterPlayerScripts/`: `InventoryPanel` (monsters, items, index), `EggPanel`, `TutorialGuide`, `ManualScare`.
 - `src/StarterPlayerScripts/HUD.client.luau`: Fear counter, rebirth button with a confirm step, popups.
 - `src/StarterPlayerScripts/MonsterAnimator.client.luau`: plays Jeff's scare when the server signals one.
 - `tools/build_plot.luau`: rebuilds the map from the Studio command bar (empty plot in Workspace, claimed contents in `ServerStorage.PlotTemplate`).

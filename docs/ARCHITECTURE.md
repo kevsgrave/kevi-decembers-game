@@ -24,7 +24,8 @@ There is no Rojo project file. Scripts reach Studio by being copied into the mat
 | `.../Server/Inventory.luau` | `...Server.Inventory` | Rules for owned monsters, hotbar and placing |
 | `.../Server/ScareScheduler.luau` | `...Server.ScareScheduler` | One scheduler for every room's scares |
 | `.../Shared/Payout.luau` | `...Shared.Payout` | The Fear formula |
-| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau` | `ServerStorage.*` | Tests, command bar only |
+| `.../Shared/Tutorial.luau` | `...Shared.Tutorial` | The tutorial steps and rules |
+| `src/ServerStorage/ConfigTests.luau`, `PlotTests.luau`, `InventoryTests.luau`, `ScareTests.luau`, `TutorialTests.luau` | `ServerStorage.*` | Tests, command bar only |
 | `src/StarterPlayerScripts/*.client.luau` | `StarterPlayer.StarterPlayerScripts.*` | HUD, scare animation, bed humps |
 | `tools/MapBuilder.luau` | `ServerStorage.MapBuilder` | Rebuilds the map from the command bar |
 | not in the repo | `Workspace` (including `Stations`), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit` | Saved only in the place |
@@ -35,7 +36,7 @@ Startup order: `Main` requires `Config` (Balance is validated here, and a failur
 
 Edit `Balance.luau`. Wrap the value in `C()` if the design notes settle it, `P()` if it's a default anyone can change. An untagged number or boolean stops the game at startup.
 
-Used by the live game so far: starting Fear, Starter Egg price and odds, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: other eggs (5), accessories (5, 6), shop and trackers (6), mutations, fusion and floors (7), the 42-species roster (when original models exist).
+Used by the live game so far: starting Fear, all egg prices and odds, the accessory items, rarities, bedroom tiers, manual base and cooldown, inventory cap, hotbar size, max Fear, rate limits, room counts and rebirth cost and multiplier. The rest waits for its phase: shop and trackers (6), mutations, fusion and floors (7), the 42-species roster (when original models exist).
 
 ## Server validation convention
 
@@ -67,12 +68,13 @@ Client requests with several steps carry a request id (the last `id` argument in
 | InventoryChanged | Event | server to client | state | live |
 | ManualCue | Event | server to client | state | live |
 | ManualTap | Event | client to server | none | live |
-| HatchEgg | Function | client to server | eggId, requestId | Phase 5 |
-| TutorialStep | Event | server to client | state | Phase 5 |
-| ClaimFreeBox | Function | client to server | none | Phase 5 |
-| OpenBox | Function | client to server | boxUid, requestId | Phase 5 |
-| EquipAccessory | Function | client to server | slotId, accessoryUid | Phase 5 |
-| UnequipAccessory | Function | client to server | slotId | Phase 5 |
+| HatchEgg | Function | client to server | eggId, requestId | live |
+| TutorialStep | Event | server to client | state | live |
+| TutorialDone | Event | client to server | none | live |
+| OpenBox | Function | client to server | boxUid | live |
+| EquipAccessory | Function | client to server | slotId, accessoryUid | live |
+| UnequipAccessory | Function | client to server | slotId | live |
+| OpenCase | Event | server to client | state | live |
 | ShopChanged | Event | server to client | state | Phase 6 |
 | BuyShopItem | Function | client to server | itemId, requestId | Phase 6 |
 | ActivateTracker | Function | client to server | trackerUid | Phase 6 |
@@ -80,7 +82,7 @@ Client requests with several steps carry a request id (the last `id` argument in
 | FuseMonsters | Function | client to server | monsterUids, requestId | Phase 7 |
 | SetSetting | Event | client to server | key, value | Phase 8 |
 
-Plots are assigned by the server, so they need no remote. Placing, picking up and starting a manual scare are ProximityPrompts (server-side `Triggered`), so they need none either. Hatching is a prompt today too; its phase decides whether to keep it or move to the remote above.
+Plots are assigned by the server, so they need no remote. Placing, picking up, starting a manual scare and claiming the free box are ProximityPrompts (server-side `Triggered`), so they need none either.
 
 ## Scares and payouts
 
@@ -91,6 +93,10 @@ Plots are assigned by the server, so they need no remote. Placing, picking up an
 Manual scares are a server-run session: fade, move inside, timing bar, pay once, kid reacts, move out. The character is anchored throughout. The client only says it tapped; the server times the tap against its own clock. Rooms with a monster working refuse manual scares.
 
 Clients get payouts from bedroom attributes (`PayoutSeq`, `PayoutAmount`, `Tier`, `State`), so visitors see them too.
+
+## Tutorial
+
+`Tutorial.luau` works out the current step from what the save holds: monsters, placements, and the `ManualDone`, `EggUsed`, `ScareSeen`, `FreeBoxClaimed` and `Complete` flags. There's no counter to get out of step, so disconnects and doing things out of order are safe. `GameService.tutorialChanged` sends the step and its target after anything that could change it. `Step` in the save is only a record. "How to play" is client-only text, so it can't repeat a reward.
 
 ## Inventory and hotbar
 

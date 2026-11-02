@@ -1,5 +1,5 @@
--- The inventory panel: every monster you own, from the server's list. Holding or favoriting only sends a request.
--- The Roblox hotbar is a separate, smaller view of the same saved inventory.
+-- The inventory panel: Monsters, Items (boxes and accessories) and the Index, all from the server's list.
+-- Every button only sends a request. The Roblox hotbar is a separate, smaller view of the same saved inventory.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -13,6 +13,10 @@ local changedRemote = Net.Event("InventoryChanged")
 local getRemote = Net.Function("GetInventory")
 local holdRemote = Net.Event("HoldMonster")
 local favoriteRemote = Net.Event("FavoriteMonster")
+local openBoxRemote = Net.Function("OpenBox")
+local equipRemote = Net.Function("EquipAccessory")
+local unequipRemote = Net.Function("UnequipAccessory")
+local openCaseRemote = Net.Event("OpenCase")
 
 local DARK = Color3.fromRGB(20, 10, 40)
 local PANEL = Color3.fromRGB(60, 40, 110)
@@ -58,11 +62,23 @@ local title = label("Title", panel, "Inventory", Color3.new(1, 1, 1))
 title.Position = UDim2.fromOffset(16, 10) title.Size = UDim2.new(1, -90, 0, 34)
 local closeButton = button("Close", panel, "X", SILVER)
 closeButton.AnchorPoint = Vector2.new(1, 0) closeButton.Position = UDim2.new(1, -10, 0, 8) closeButton.Size = UDim2.fromOffset(44, 44)
+
+local tabs = {"Monsters", "Items", "Index"}
+local tabButtons = {}
+for i, name in tabs do
+	local b = button(name, panel, name, ROW)
+	b.Position = UDim2.new((i - 1) / 3, if i == 1 then 12 else 4, 0, 52)
+	b.Size = UDim2.new(1 / 3, -14, 0, 38)
+	tabButtons[name] = b
+end
+
 local sortButton = button("Sort", panel, "", ROW)
-sortButton.Position = UDim2.fromOffset(16, 52) sortButton.Size = UDim2.fromOffset(190, 40)
+sortButton.Position = UDim2.fromOffset(12, 96) sortButton.Size = UDim2.fromOffset(190, 36)
+local hint = label("Hint", panel, "", Color3.fromRGB(235, 235, 245))
+hint.Position = UDim2.fromOffset(12, 96) hint.Size = UDim2.new(1, -24, 0, 36) hint.TextWrapped = true
 
 local list = Instance.new("ScrollingFrame") list.Name = "List"
-list.Position = UDim2.fromOffset(12, 100) list.Size = UDim2.new(1, -24, 1, -112)
+list.Position = UDim2.fromOffset(12, 138) list.Size = UDim2.new(1, -24, 1, -150)
 list.BackgroundTransparency = 1 list.BorderSizePixel = 0 list.ScrollBarThickness = 8
 list.CanvasSize = UDim2.new() list.AutomaticCanvasSize = Enum.AutomaticSize.Y list.Parent = panel
 local layout = Instance.new("UIListLayout") layout.Padding = UDim.new(0, 6) layout.SortOrder = Enum.SortOrder.LayoutOrder layout.Parent = list
@@ -77,7 +93,42 @@ local SORTS = {
 	{name = "Newest", less = function(a, b) return a.order > b.order end},
 }
 local sortIndex = 1
+local currentTab = "Monsters"
 local current = nil
+local caseSlot = nil -- the display case the panel was opened from, for equipping
+
+-- BoneCharm reads as Bone Charm
+local function spaced(id)
+	return (string.gsub(id, "(%l)(%u)", "%1 %2"))
+end
+
+local function clearList()
+	for _, child in ipairs(list:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
+end
+
+local function rowFrame(name, position, height)
+	local f = Instance.new("Frame") f.Name = name f.LayoutOrder = position f.Size = UDim2.new(1, -12, 0, height)
+	f.BackgroundColor3 = ROW f.Parent = list
+	corner(f, 12)
+	return f
+end
+
+local function twoLines(f, top, topColor, bottom, leftPad)
+	local a = label("Top", f, top, topColor)
+	a.Position = UDim2.fromOffset(leftPad, 6) a.Size = UDim2.new(1, -(leftPad + 110), 0, 30)
+	local b = label("Bottom", f, bottom)
+	b.Position = UDim2.fromOffset(leftPad, 38) b.Size = UDim2.new(1, -(leftPad + 110), 0, 26)
+	return a, b
+end
+
+local function actionButton(f, text, color, onPress)
+	local b = button("Action", f, text, color)
+	b.AnchorPoint = Vector2.new(1, 0.5) b.Position = UDim2.new(1, -8, 0.5, 0) b.Size = UDim2.fromOffset(96, 48)
+	b.Activated:Connect(onPress)
+	return b
+end
 
 local function statusOf(row)
 	if row.placedIn then return "In bedroom " .. row.placedIn end
@@ -85,34 +136,7 @@ local function statusOf(row)
 	return "In storage"
 end
 
-local function addRow(row, position)
-	local tier = Config.TIER_BY_NAME[row.tier]
-	local f = Instance.new("Frame") f.Name = row.uid f.LayoutOrder = position f.Size = UDim2.new(1, -12, 0, 72)
-	f.BackgroundColor3 = ROW f.Parent = list
-	corner(f, 12)
-	local star = button("Favorite", f, row.favorited and "★" or "☆", row.favorited and GOLD or SILVER)
-	star.Position = UDim2.fromOffset(8, 14) star.Size = UDim2.fromOffset(44, 44)
-	star.Activated:Connect(function() favoriteRemote:FireServer(row.uid, not row.favorited) end)
-	local nameText = row.kind .. " - " .. row.tier
-	local extras = {}
-	if row.size and row.size ~= "Normal" then table.insert(extras, row.size) end
-	if row.mutation then table.insert(extras, row.mutation) end
-	if #extras > 0 then nameText ..= " (" .. table.concat(extras, ", ") .. ")" end
-	local top = label("Name", f, nameText, tier and tier.color or Color3.new(1, 1, 1))
-	top.Position = UDim2.fromOffset(60, 6) top.Size = UDim2.new(1, -170, 0, 30)
-	local bottom = label("Info", f, "👻 " .. Config.short(row.baseFear) .. " / scare, " .. statusOf(row))
-	bottom.Position = UDim2.fromOffset(60, 38) bottom.Size = UDim2.new(1, -170, 0, 26)
-	if not row.placedIn then
-		local hold = button("Hold", f, "Hold", LIME)
-		hold.AnchorPoint = Vector2.new(1, 0.5) hold.Position = UDim2.new(1, -8, 0.5, 0) hold.Size = UDim2.fromOffset(92, 48)
-		hold.Activated:Connect(function() holdRemote:FireServer(row.uid) end)
-	end
-end
-
-local function render()
-	for _, child in ipairs(list:GetChildren()) do
-		if child:IsA("Frame") then child:Destroy() end
-	end
+local function renderMonsters()
 	local rows = current and current.rows or {}
 	title.Text = "Inventory " .. #rows .. " / " .. (current and current.capacity or Config.INVENTORY_CAP)
 	sortButton.Text = "Sort: " .. SORTS[sortIndex].name
@@ -122,17 +146,136 @@ local function render()
 		if less(b, a) then return false end
 		return a.order < b.order
 	end)
-	for position, row in ipairs(rows) do addRow(row, position) end
+	for position, row in ipairs(rows) do
+		local tier = Config.TIER_BY_NAME[row.tier]
+		local f = rowFrame(row.uid, position, 72)
+		local star = button("Favorite", f, row.favorited and "★" or "☆", row.favorited and GOLD or SILVER)
+		star.Position = UDim2.fromOffset(8, 14) star.Size = UDim2.fromOffset(44, 44)
+		star.Activated:Connect(function() favoriteRemote:FireServer(row.uid, not row.favorited) end)
+		local nameText = row.kind .. " - " .. row.tier
+		local extras = {}
+		if row.size and row.size ~= "Normal" then table.insert(extras, row.size) end
+		if row.mutation then table.insert(extras, row.mutation) end
+		if #extras > 0 then nameText ..= " (" .. table.concat(extras, ", ") .. ")" end
+		twoLines(f, nameText, tier and tier.color or Color3.new(1, 1, 1), "👻 " .. Config.short(row.baseFear) .. " / scare, " .. statusOf(row), 60)
+		if not row.placedIn then
+			actionButton(f, "Hold", LIME, function() holdRemote:FireServer(row.uid) end)
+		end
+	end
+end
+
+local function boxOdds(boxId)
+	local parts = {}
+	for _, item in ipairs(Config.BOX_ITEMS[boxId] or {}) do
+		table.insert(parts, string.format("%s %.1f%%", spaced(item.id), item.weight))
+	end
+	return table.concat(parts, ", ")
+end
+
+local function renderItems()
+	local boxes = current and current.boxes or {}
+	local accessories = current and current.accessories or {}
+	title.Text = "Items"
+	hint.Text = if caseSlot then "Choose an accessory for bedroom " .. caseSlot else "Press F at a display case to equip an accessory there"
+	local position = 0
+	for _, box in ipairs(boxes) do
+		position += 1
+		local f = rowFrame(box.uid, position, 96)
+		local top = label("Top", f, spaced(box.id), GOLD)
+		top.Position = UDim2.fromOffset(12, 6) top.Size = UDim2.new(1, -120, 0, 30)
+		local odds = label("Odds", f, boxOdds(box.id))
+		odds.Position = UDim2.fromOffset(12, 38) odds.Size = UDim2.new(1, -120, 0, 50) odds.TextWrapped = true
+		actionButton(f, "Open", LIME, function()
+			local ok, success, result = pcall(openBoxRemote.InvokeServer, openBoxRemote, box.uid)
+			if ok and success then
+				hint.Text = "You got " .. spaced(result.id) .. ", x" .. result.mult .. " Fear!"
+			end
+		end)
+	end
+	table.sort(accessories, function(a, b) return a.mult > b.mult end)
+	for _, item in ipairs(accessories) do
+		position += 1
+		local f = rowFrame(item.uid, position, 72)
+		twoLines(f, spaced(item.id), Color3.fromRGB(180, 230, 255), "x" .. item.mult .. " Fear, " .. (item.slot and "on bedroom " .. item.slot or "not equipped"), 12)
+		if item.slot then
+			actionButton(f, "Remove", SILVER, function() pcall(unequipRemote.InvokeServer, unequipRemote, item.slot) end)
+		elseif caseSlot then
+			actionButton(f, "Equip", LIME, function() pcall(equipRemote.InvokeServer, equipRemote, caseSlot, item.uid) end)
+		end
+	end
+	if position == 0 then
+		local f = rowFrame("Empty", 1, 56)
+		local t = label("Top", f, "No items yet. Boxes come from the shop.", Color3.new(1, 1, 1))
+		t.Position = UDim2.fromOffset(12, 12) t.Size = UDim2.new(1, -24, 0, 32)
+	end
+end
+
+local function renderIndex()
+	local index = current and current.index or {}
+	local found, total = 0, 0
+	-- the stand-in first, because it's the only monster hatches give until original models exist
+	local entries = {{id = Config.MONSTER_KIND, name = Config.MONSTER_KIND .. " (stand-in)", rarity = nil, known = index[Config.MONSTER_KIND]}}
+	for _, m in ipairs(Config.Balance.monsters) do
+		table.insert(entries, {id = m.id, name = m.name, rarity = m.rarity, baseFear = m.baseFear, concept = m.concept, known = index[m.id]})
+	end
+	for position, e in ipairs(entries) do
+		if position > 1 then
+			total += 1
+			if e.known then found += 1 end
+		end
+		local tier = e.rarity and Config.TIER_BY_NAME[e.rarity]
+		local f = rowFrame(e.id, position, 66)
+		local a = label("Top", f, if e.known then e.name else "???", if e.known and tier then tier.color else Color3.new(0.75, 0.75, 0.8))
+		a.Position = UDim2.fromOffset(12, 6) a.Size = UDim2.new(1, -24, 0, 28)
+		local detail = if e.rarity then e.rarity else "Any rarity"
+		if e.known and e.concept then detail ..= ": " .. e.concept end
+		if not e.known then detail ..= ", not discovered yet" end
+		local b = label("Bottom", f, detail)
+		b.Position = UDim2.fromOffset(12, 36) b.Size = UDim2.new(1, -24, 0, 24)
+	end
+	title.Text = "Index " .. found .. " / " .. total
+	hint.Text = "Species can't be found until their original models exist. Hatches are Jeff for now."
+end
+
+local function render()
+	clearList()
+	sortButton.Visible = currentTab == "Monsters"
+	hint.Visible = currentTab ~= "Monsters"
+	for name, b in tabButtons do
+		b.BackgroundColor3 = if name == currentTab then LIME else ROW
+	end
+	if currentTab == "Monsters" then
+		renderMonsters()
+	elseif currentTab == "Items" then
+		renderItems()
+	else
+		renderIndex()
+	end
 end
 
 local function setOpen(open)
 	panel.Visible = open
-	if open then render() end
+	if open then render() else caseSlot = nil end
+end
+
+local function showTab(name)
+	currentTab = name
+	render()
+end
+for name, b in tabButtons do
+	b.Activated:Connect(function() showTab(name) end)
 end
 
 changedRemote.OnClientEvent:Connect(function(state)
 	current = state
 	if panel.Visible then render() end
+end)
+
+-- the server says this player used a case's Accessory prompt
+openCaseRemote.OnClientEvent:Connect(function(slot)
+	caseSlot = slot
+	currentTab = "Items"
+	setOpen(true)
 end)
 
 openButton.Activated:Connect(function() setOpen(not panel.Visible) end)

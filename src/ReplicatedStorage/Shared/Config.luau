@@ -72,6 +72,29 @@ function Config.pickMonsterTier(r)
 	return Config.MONSTER_TIERS[1] -- float rounding at the very top of the range
 end
 
+Config.EGGS = eggsById
+
+-- rolls a rarity from any egg's own odds, least rare first
+function Config.pickFromEgg(eggId, r)
+	local last
+	for _, rarity in ipairs(B.rarities) do
+		local chance = eggsById[eggId].odds[rarity.id]
+		if chance and chance > 0 then
+			last = Config.TIER_BY_NAME[rarity.id]
+			if r < chance then return last end
+			r -= chance
+		end
+	end
+	return last -- float rounding at the very top of the range
+end
+
+-- each accessory box's contents, in order
+Config.BOX_ITEMS = {}
+for _, box in B.accessories.boxes do Config.BOX_ITEMS[box.id] = {} end
+for _, item in B.accessories.items do table.insert(Config.BOX_ITEMS[item.box], item) end
+Config.ACCESSORY_MULT = {}
+for _, item in B.accessories.items do Config.ACCESSORY_MULT[item.id] = item.mult end
+
 function Config.pickBedroomTier(r)
 	for _, t in ipairs(Config.BEDROOM_TIERS) do
 		if r < t.chance then return t end

@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local JeffRig = require(Shared:WaitForChild("JeffRig"))
 local Payout = require(Shared:WaitForChild("Payout"))
+local Tutorial = require(Shared:WaitForChild("Tutorial"))
 local Net = require(Shared:WaitForChild("Net"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local DataTemplate = require(script.Parent.DataTemplate)
@@ -28,13 +29,14 @@ local hub = workspace:WaitForChild("Hub")
 local template = ServerStorage:WaitForChild("PlotTemplate")
 
 local rng = Random.new()
-local popupRemote, rebirthRemote, inventoryRemote, cueRemote -- created in Start, from one list
+local popupRemote, rebirthRemote, inventoryRemote, cueRemote, tutorialRemote, openCaseRemote -- created in Start, from one list
 
 local allowHatch = RateLimiter.new(Config.LIMITS.hatch.capacity, Config.LIMITS.hatch.refillPerSecond)
 local allowShowcase = RateLimiter.new(Config.LIMITS.showcase.capacity, Config.LIMITS.showcase.refillPerSecond)
 local allowRebirth = RateLimiter.new(Config.LIMITS.rebirth.capacity, Config.LIMITS.rebirth.refillPerSecond)
 local allowInventory = RateLimiter.new(Config.LIMITS.inventory.capacity, Config.LIMITS.inventory.refillPerSecond)
 local allowManual = RateLimiter.new(Config.LIMITS.manual.capacity, Config.LIMITS.manual.refillPerSecond)
+local allowItems = RateLimiter.new(Config.LIMITS.items.capacity, Config.LIMITS.items.refillPerSecond)
 
 local claims = PlotClaims.new()
 local plotOf = claims.plotOf -- [player] = plot Model
@@ -42,6 +44,8 @@ local lastManual = {} -- [player] = os.clock() of their last manual scare
 local manualSessions = {} -- [player] = the manual scare in progress
 local working = {} -- [bedroom] = {player, uid} for a monster doing automatic scares
 local reacting = {} -- [bedroom] = true while its guest is reacting, so nothing else can scare it
+local tutorialSent = {} -- [player] = what they were last told, so a repeat isn't sent
+local lastHatch = {} -- [player] = the last hatch request and its answer, so a retry can't hatch twice
 
 local function bedroomsOf(player)
 	local plot = plotOf[player]
@@ -274,11 +278,67 @@ local function syncTools(player)
 	return have
 end
 
--- everything that changes the inventory ends here: the hotbar view and the client's panel both follow the save
+-- what the tutorial points at for this step, on this player's own plot; nil for steps that point at the interface
+local function tutorialTarget(player, d, id)
+	if id == "egg" then return hub.Egg end
+	if id == "box" then return workspace.Stations:FindFirstChild("ShopClaim") end
+	local bedrooms = bedroomsOf(player)
+	if not bedrooms then return nil end
+	local unlocked = Config.unlockedBedrooms(d.Rebirths)
+	for index = 1, unlocked do
+		local b = bedrooms:FindFirstChild("Bedroom" .. index)
+		local busy = d.Placed[tostring(index)] ~= nil
+		if b then
+			if id == "manual" and not busy then return b.CrawlHole end
+			if id == "place" and not busy then return b.ShowcaseGlass end
+			if id == "watch" and busy then return b.Window end
+			if id == "equip" then return b.ShowcaseBase end
+		end
+	end
+	return nil
+end
+
+local UI_TARGETS = {hold = "hotbar", open = "inventory"}
+
+-- tells the client where the tutorial stands. Called after anything that could change it; the step comes from the save.
+local function tutorialChanged(player)
+	local d = data(player)
+	if not d then return end
+	local held = player.Character and player.Character:FindFirstChildOfClass("Tool")
+	local id = Tutorial.current(d, held ~= nil and held:GetAttribute("Uid") ~= nil)
+	player:SetAttribute("PromiseEgg", Tutorial.canHatchPromiseEgg(d))
+	if id then d.Tutorial.Step = Tutorial.indexOf(id) end
+	local target = id and tutorialTarget(player, d, id)
+	local key = tostring(id) .. ":" .. (target and target:GetFullName() or "")
+	if tutorialSent[player] == key then return end
+	tutorialSent[player] = key
+	if not id then
+		tutorialRemote:FireClient(player, {id = "none"})
+		return
+	end
+	local text = Tutorial.STEPS[Tutorial.indexOf(id)].text
+	if id == "done" then
+		local slot = next(d.CaseAccessories)
+		local mult = slot and Payout.accessoryOf(d, slot) or 1
+		text = "Your case now pays x" .. mult .. " Fear! Next: hatch more eggs, rebirth for more rooms, and check back as the shop, fusion and trackers open."
+	end
+	tutorialRemote:FireClient(player, {
+		id = id,
+		index = Tutorial.indexOf(id),
+		total = Tutorial.COUNT,
+		text = text,
+		target = target,
+		position = target and target.Position,
+		ui = UI_TARGETS[id],
+	})
+end
+
+-- everything that changes the inventory ends here: the hotbar view, the client's panel and the tutorial all follow the save
 local function inventoryChanged(player)
 	syncTools(player)
 	local d = data(player)
 	if d then inventoryRemote:FireClient(player, Inventory.snapshot(d)) end
+	tutorialChanged(player)
 end
 
 local function refreshLocks(player)
@@ -298,6 +358,7 @@ local function refreshLocks(player)
 		b.ShowcaseLid.Info.Enabled = open
 		b.CrawlHole.ScarePrompt.Enabled = open
 		b.ShowcaseGlass.PlacePrompt.Enabled = open
+		b.ShowcaseBase.AccessoryPrompt.Enabled = open
 		if open then
 			makeGuest(b.GuestSpot)
 			showInfo(player, b)
@@ -338,6 +399,10 @@ local scheduler = ScareScheduler.new({
 		local amount = roomPayout(d, bedroom, d.Monsters[work.uid]).total
 		if not pay(work.player, amount) then return false end
 		announcePayout(bedroom, amount)
+		if not d.Tutorial.ScareSeen then
+			d.Tutorial.ScareSeen = true
+			tutorialChanged(work.player)
+		end
 		return true
 	end,
 	reset = function(bedroom)
@@ -366,25 +431,40 @@ local function startRoom(player, bedroom, uid)
 	showInfo(player, bedroom)
 end
 
-local function hatch(player)
-	if not allowHatch(player) then return end
+-- the egg shrine's panel asks for this. Returns true and the result, or false and a reason for the player.
+local function hatchEgg(player, ...)
+	if not allowHatch(player) then return false, "Slow down!" end
+	if not Remotes.checkArgs("HatchEgg", ...) then return false, "Bad request" end
+	local eggId, requestId = ...
+	local last = lastHatch[player]
+	if last and last.requestId == requestId then return true, last.result end -- a retry of a hatch that already happened
 	local d = data(player)
-	local egg = hub.Egg
-	if not d or not near(player, egg, egg.HatchPrompt.MaxActivationDistance) then return end
-	if Inventory.isFull(d) then
-		popup(player, "Your inventory is full (" .. Config.INVENTORY_CAP .. ")")
-		return
+	if not d then return false, "Still loading" end
+	local egg = Config.EGGS[eggId]
+	if not egg then return false, "Bad request" end
+	local promise = egg.source == "tutorial"
+	if promise then
+		if not Tutorial.canHatchPromiseEgg(d) then return false, "Not available" end
+	elseif egg.source ~= "fear" or not egg.live then
+		return false, "Not available"
 	end
-	if d.Fear < Config.EGG_COST then
-		popup(player, "Need " .. Config.EGG_COST .. " Fear")
-		return
-	end
+	if not near(player, hub.Egg, 30) then return false, "Come back to the egg shrine" end
+	if Inventory.isFull(d) then return false, "Inventory is full (" .. Config.INVENTORY_CAP .. ")" end
+	if not promise and d.Fear < egg.price then return false, "Need " .. Config.short(egg.price) .. " Fear" end
 	-- no yields from the checks above to here, so a double request cannot spend once and hatch twice
-	local tier = Config.pickMonsterTier(rng:NextNumber(0, 100))
-	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, rng:NextInteger(tier.min, tier.max), "egg"))
-	setFear(player, d, d.Fear - Config.EGG_COST)
+	local tier = Config.pickFromEgg(eggId, rng:NextNumber(0, 100))
+	local baseFear = rng:NextInteger(tier.min, tier.max)
+	Inventory.add(d, DataTemplate.newMonster(Config.MONSTER_KIND, tier.name, baseFear, promise and "tutorial" or "egg"))
+	if promise then
+		d.Tutorial.EggUsed = true
+	else
+		setFear(player, d, d.Fear - egg.price)
+	end
 	inventoryChanged(player)
-	popup(player, "You hatched a " .. tier.name .. " " .. Config.MONSTER_KIND .. "! Hold it and press E at a display case.")
+	task.spawn(PlayerData.SaveNowAsync, player)
+	local result = {kind = Config.MONSTER_KIND, tier = tier.name, baseFear = baseFear}
+	lastHatch[player] = {requestId = requestId, result = result}
+	return true, result
 end
 
 -- display case prompt: place the monster you're holding, or pick the current one back up
@@ -488,6 +568,8 @@ local function runManual(player, b, session)
 		local amount = Payout.manual(d.Rebirths, bonus)
 		if pay(player, amount) then
 			announcePayout(b, amount)
+			d.Tutorial.ManualDone = true
+			tutorialChanged(player)
 			cueRemote:FireClient(player, {phase = "done", word = word, amount = amount})
 			playScare(b)
 		end
@@ -548,6 +630,70 @@ local function manualTap(player, ...)
 	end
 end
 
+-- the shop's free box: once ever
+local function claimFreeBox(player)
+	if not allowItems(player) then return end
+	local d = data(player)
+	local spot = workspace.Stations:FindFirstChild("ShopClaim")
+	if not d or not spot or not near(player, spot, spot.ClaimPrompt.MaxActivationDistance) then return end
+	if not Inventory.claimFreeBox(d) then
+		popup(player, "You've had your free box. The full shop opens soon!")
+		return
+	end
+	inventoryChanged(player)
+	task.spawn(PlayerData.SaveNowAsync, player)
+	popup(player, "Free Rare box! Open it in your Inventory, under Items.")
+end
+
+local function openBox(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("OpenBox", ...) then return false end
+	local d = data(player)
+	local boxUid = ...
+	if not d then return false end
+	local uid, id = Inventory.openBox(d, boxUid, rng:NextNumber(0, 100))
+	if not uid then return false end
+	inventoryChanged(player)
+	task.spawn(PlayerData.SaveNowAsync, player)
+	return true, {id = id, mult = Config.ACCESSORY_MULT[id]}
+end
+
+-- equip and remove: the client names a bedroom, the server checks it's theirs and that they're at it
+local function ownCase(player, d, slot)
+	local bedrooms = bedroomsOf(player)
+	local b = bedrooms and bedrooms:FindFirstChild("Bedroom" .. slot)
+	if not b or not near(player, b.ShowcaseBase, 30) then return nil end
+	return b
+end
+
+local function equipAccessory(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("EquipAccessory", ...) then return false end
+	local d = data(player)
+	local slot, uid = ...
+	local b = d and ownCase(player, d, slot)
+	if not b or not Inventory.equip(d, b:GetAttribute("Index"), uid, Config.unlockedBedrooms(d.Rebirths)) then return false end
+	showInfo(player, b)
+	inventoryChanged(player)
+	return true
+end
+
+local function unequipAccessory(player, ...)
+	if not allowItems(player) or not Remotes.checkArgs("UnequipAccessory", ...) then return false end
+	local d = data(player)
+	local slot = ...
+	local b = d and ownCase(player, d, slot)
+	if not b or not Inventory.unequip(d, b:GetAttribute("Index")) then return false end
+	showInfo(player, b)
+	inventoryChanged(player)
+	return true
+end
+
+-- the case's Accessory prompt opens the panel on that case
+local function useAccessoryPrompt(player, b)
+	if not allowItems(player) or not ownedOrWarn(player, b) then return end
+	if not near(player, b.ShowcaseBase, b.ShowcaseBase.AccessoryPrompt.MaxActivationDistance) then return end
+	openCaseRemote:FireClient(player, tostring(b:GetAttribute("Index")))
+end
+
 local function sendHome(player)
 	local plot = plotOf[player]
 	local char = player.Character
@@ -581,6 +727,16 @@ local function claim(player)
 		setBedroomTier(b, Config.NORMAL_TIER)
 		b.CrawlHole.ScarePrompt.ActionText = "Crawl In"
 		b.CrawlHole.ScarePrompt.Triggered:Connect(function(p) manualScare(p, b) end)
+		local accessoryPrompt = Instance.new("ProximityPrompt")
+		accessoryPrompt.Name = "AccessoryPrompt"
+		accessoryPrompt.ActionText = "Accessory"
+		accessoryPrompt.KeyboardKeyCode = Enum.KeyCode.F
+		accessoryPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+		accessoryPrompt.MaxActivationDistance = 10
+		accessoryPrompt.RequiresLineOfSight = false
+		accessoryPrompt.UIOffset = Vector2.new(0, 70)
+		accessoryPrompt.Triggered:Connect(function(p) useAccessoryPrompt(p, b) end)
+		accessoryPrompt.Parent = b.ShowcaseBase
 		b.ShowcaseGlass.PlacePrompt.Triggered:Connect(function(p) useShowcase(p, b) end)
 	end
 	setLabel(plot.OwnerSign, player.DisplayName .. "'s Plot")
@@ -590,7 +746,7 @@ local function claim(player)
 		if b and b:GetAttribute("Index") <= Config.unlockedBedrooms(d.Rebirths) then startRoom(player, b, uid) end
 	end
 	sendHome(player)
-	popup(player, "This is your plot! Scare a kid through the crawl hole, then hatch an egg in the middle of the map.")
+	tutorialChanged(player)
 end
 
 local function unclaim(leaving)
@@ -633,9 +789,21 @@ local function onLoaded(profile)
 	ls.Parent = player
 	publishRebirth(player, d)
 	inventoryChanged(player)
-	player.CharacterAdded:Connect(function()
+	-- the tutorial's "hold" step moves on when a monster is really in the player's hand
+	local function watchHand(char)
+		char.ChildAdded:Connect(function(child)
+			if child:IsA("Tool") then task.defer(tutorialChanged, player) end
+		end)
+		char.ChildRemoved:Connect(function(child)
+			if child:IsA("Tool") then task.defer(tutorialChanged, player) end
+		end)
+	end
+	if player.Character then watchHand(player.Character) end
+	player.CharacterAdded:Connect(function(char)
+		watchHand(char)
 		task.defer(syncTools, player)
 		task.defer(sendHome, player)
+		task.defer(tutorialChanged, player)
 	end)
 	if profile.Unsaved then popup(player, "Studio test: progress will not be saved") end
 	claim(player)
@@ -648,6 +816,20 @@ function GameService.Start()
 	rebirthRemote = remotes.Rebirth
 	inventoryRemote = remotes.InventoryChanged
 	cueRemote = remotes.ManualCue
+	tutorialRemote = remotes.TutorialStep
+	openCaseRemote = remotes.OpenCase
+	remotes.HatchEgg.OnServerInvoke = hatchEgg
+	remotes.OpenBox.OnServerInvoke = openBox
+	remotes.EquipAccessory.OnServerInvoke = equipAccessory
+	remotes.UnequipAccessory.OnServerInvoke = unequipAccessory
+	remotes.TutorialDone.OnServerEvent:Connect(function(player, ...)
+		local d = data(player)
+		if d and Remotes.checkArgs("TutorialDone", ...) and Tutorial.current(d, false) == "done" then
+			d.Tutorial.Complete = true
+			tutorialChanged(player)
+			task.spawn(PlayerData.SaveNowAsync, player)
+		end
+	end)
 	remotes.ManualTap.OnServerEvent:Connect(manualTap)
 	rebirthRemote.OnServerInvoke = rebirth
 	remotes.GetInventory.OnServerInvoke = getInventory
@@ -656,11 +838,14 @@ function GameService.Start()
 
 	-- the hub egg: odds generated from Config, shown before anyone spends
 	local egg = hub.Egg
-	egg.HatchPrompt.Triggered:Connect(hatch)
-	egg.BillboardGui.Text.Text = Config.EGG_NAME .. " - " .. Config.EGG_COST .. " Fear"
-	egg.HatchPrompt.ObjectText = Config.EGG_NAME
+	-- the prompt opens the egg panel on the client, which shows every egg's odds before anyone spends
+	egg.HatchPrompt.ActionText = "Open Eggs"
+	local shopClaim = workspace:WaitForChild("Stations"):WaitForChild("ShopClaim")
+	shopClaim.ClaimPrompt.Triggered:Connect(claimFreeBox)
+	egg.BillboardGui.Text.Text = "Egg Shrine"
+	egg.HatchPrompt.ObjectText = "Egg Shrine"
 	local odds = hub.EggOdds:FindFirstChildWhichIsA("SurfaceGui")
-	if odds then odds.Text.Text = "Odds\n" .. Config.oddsText() end
+	if odds then odds.Text.Text = Config.EGG_NAME .. "\n" .. Config.EGG_COST .. " Fear\n" .. Config.oddsText() end
 	for _, plot in ipairs(plotsFolder:GetChildren()) do
 		if plot:IsA("Model") then setLabel(plot.OwnerSign, "Free plot") end
 	end
@@ -674,6 +859,8 @@ function GameService.Start()
 	Players.PlayerRemoving:Connect(function(player)
 		lastManual[player] = nil
 		manualSessions[player] = nil
+		tutorialSent[player] = nil
+		lastHatch[player] = nil
 		unclaim(player)
 	end)
 end

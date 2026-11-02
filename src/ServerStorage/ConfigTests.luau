@@ -48,7 +48,7 @@ return function(balance: any?, validator: any?, remotes: any?): string
 	check("every rarity has species", perRarity.Common == 8 and perRarity.Rare == 8 and perRarity.Epic == 7 and perRarity.Legendary == 6 and perRarity.Mythic == 5 and perRarity.SPOOKY == 5 and perRarity.Secret == 3)
 	check("first rebirth costs 50,000, then x3", plain.rebirth.costBase == 50000 and plain.rebirth.costGrowth == 3)
 	check("starter egg is 500 Fear", row(plain.eggs, "StarterEgg").price == 500)
-	check("seven eggs, one live", #plain.eggs == 7 and row(plain.eggs, "StarterEgg").live == true and row(plain.eggs, "MoonEgg").live == false)
+	check("seven eggs, the five Fear eggs on sale", #plain.eggs == 7 and row(plain.eggs, "StarterEgg").live == true and row(plain.eggs, "NightmareEgg").live == true and row(plain.eggs, "TutorialEgg").live == false)
 	check("inventory holds 250", plain.economy.inventoryCap == 250)
 	check("manual cooldown is 8s", plain.manual.cooldownSeconds == 8)
 	local tutorialEgg = row(plain.eggs, "TutorialEgg")

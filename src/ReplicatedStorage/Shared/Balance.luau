@@ -11,7 +11,7 @@ return {
 	},
 
 	start = {
-		fear = P(500, "exactly one Starter Egg, until the tutorial voucher exists"),
+		fear = P(500, "exactly one Starter Egg, on top of the tutorial's free Promise Egg"),
 		monsterKind = P("Jeff", "stand-in until original models exist, see docs/spec/OVERRIDES.md"),
 	},
 
@@ -37,6 +37,7 @@ return {
 	-- server rate limits for prompts and remotes
 	limits = {
 		hatch = {capacity = P(3), refillPerSecond = P(1.5)},
+		items = {capacity = P(6), refillPerSecond = P(3)},
 		showcase = {capacity = P(4), refillPerSecond = P(2)},
 		rebirth = {capacity = P(2), refillPerSecond = P(0.5)},
 		inventory = {capacity = P(8), refillPerSecond = P(4)},
@@ -118,19 +119,19 @@ return {
 			odds = {Common = P(78), Rare = P(21), Epic = P(1)},
 		},
 		{
-			id = "CreepyEgg", name = "Creepy Egg", live = P(false), source = "fear", price = P(6000),
+			id = "CreepyEgg", name = "Creepy Egg", live = P(true), source = "fear", price = P(6000),
 			odds = {Rare = P(65), Epic = P(30), Legendary = P(5)},
 		},
 		{
-			id = "MoonEgg", name = "Moon Egg", live = P(false), source = "fear", price = P(60000),
+			id = "MoonEgg", name = "Moon Egg", live = P(true), source = "fear", price = P(60000),
 			odds = {Epic = P(65), Legendary = P(30), Mythic = P(5)},
 		},
 		{
-			id = "HauntedEgg", name = "Haunted Egg", live = P(false), source = "fear", price = P(600000),
+			id = "HauntedEgg", name = "Haunted Egg", live = P(true), source = "fear", price = P(600000),
 			odds = {Legendary = P(65), Mythic = P(33), SPOOKY = P(2)},
 		},
 		{
-			id = "NightmareEgg", name = "Nightmare Egg", live = P(false), source = "fear", price = P(6000000),
+			id = "NightmareEgg", name = "Nightmare Egg", live = P(true), source = "fear", price = P(6000000),
 			odds = {Mythic = P(85), SPOOKY = P(14.9), Secret = P(0.1)},
 		},
 		{
