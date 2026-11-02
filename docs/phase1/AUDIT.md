@@ -10,6 +10,23 @@ All 17 scripts in SCARE THEM matched `jumpscare-rng-v1` (07932ac) exactly, compa
 
 These live only in the place, not in the repo: the map (Workspace), `ServerStorage.PlotTemplate`, `Furniture`, `KidModels`, `MapKit`, and the generated materials. `tools/build_plot.luau` and `MapBuilder` rebuild parts of the map, but the generated meshes exist only in the place file, so **saving the place is the only backup of them**.
 
+## Inventory
+
+Before the Phase 1 sync there were 17 scripts; `docs/ARCHITECTURE.md` lists each one. Phase 1 added `Balance`, `ConfigValidator`, `Remotes` and `ConfigTests`.
+
+| Where | Objects | Contents |
+|---|---|---|
+| Workspace | 5,768 | `Plots` (Plot1 to Plot8, `Contents` empty until claimed), `Hub` (97), `Paths` (264), `Scenery` (123), `World` (1,065), Baseplate, SpawnLocation, Terrain. 1,516 MeshParts, 474 Parts, 269 PointLights |
+| ServerStorage | 1,108 | `PlotTemplate.Bedrooms` (6), `Furniture` (20 models), `KidModels` (KidBear, KidBunny, KidFawn), `MapKit` (34 models), `MapBuilder` |
+| ReplicatedStorage | Shared only | 5 modules before Phase 1, 8 now. No remotes in Edit; the server creates them at start |
+| ServerScriptService | Server only | `Main` plus 7 modules |
+| StarterPlayerScripts | 3 | `BedHumps`, `HUD`, `MonsterAnimator` |
+| StarterGui, StarterPack, SoundService | 0 | Empty; the HUD is built at runtime |
+| MaterialService | 16 | `AssistantMaterials`: generated variants including HouseSiding, PlazaStone and DirtPath |
+| Lighting | 5 | Atmosphere, Bloom, DepthOfField, Sky, SunRays |
+
+**Assets:** 31 unique meshes and 32 unique textures in Workspace; 57 and 58 in ServerStorage (the two sets may overlap). No Sound or Animation objects anywhere in the place; Jeff's scare is baked into `JeffAnim`. I counted these but did not trace who made each asset ID, so the rights check the master prompt asks for is still open. Local Blender and video files are in `art/`, which is untracked.
+
 ## Playtest checklist (27/28 Oct): what is really there
 
 | Item | Note says | Found | Evidence |
@@ -67,7 +84,7 @@ These live only in the place, not in the repo: the map (Workspace), `ServerStora
 
 ## Decisions for the owner
 
-1. **"Jeff" and the monster list.** `Monster Names.md` lists Jeff the Killer, Smile Dog and others, and notes several are copyrighted. The master prompt says to make original characters and not reuse franchise names. The in-game name is `start.monsterKind` in `Balance`, so renaming is one line. Whether to keep it is your call before publishing.
+1. **Jeff's replacement.** The Phase 8 prompt says not to copy Jeff the Killer or the other characters in `Monster Names.md`, so Jeff is a stand-in and gets replaced by original monsters. The in-game name is `start.monsterKind` in `Balance`, so renaming is one line, but the model and scare animation need replacing too. What's open is whether to rename him sooner than Phase 8.
 2. **GOD odds.** The note says `.001` with no % sign. Set to 0.001% as the master prompt says. If it should be something else, change GOD and Normal together in `Balance`.
 3. **Rebirth and Fear.** The live game wipes Fear on rebirth, the master prompt's rule keeps the rest. Phase 7 follows the master prompt unless you say otherwise.
 
